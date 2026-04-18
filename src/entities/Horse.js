@@ -137,7 +137,8 @@ export class Horse {
         this.mesh.remove(child);
         if (child.isMesh) {
           child.geometry.dispose();
-          child.material.dispose();
+          const mats = Array.isArray(child.material) ? child.material : [child.material];
+          for (const m of mats) { if (m && m.dispose) m.dispose(); }
         }
       }
       this.mesh.add(model);
@@ -183,8 +184,9 @@ export class Horse {
    * @param {number} targetYaw — camera yaw; horse turns toward this
    * @param {boolean} spaceHeld — Space is held down (canter)
    * @param {boolean} spaceTapped — Space was just pressed this frame (gallop kick)
+   * @param {number} steer — -1 (left) to +1 (right) from A/D keys
    */
-  applyRiderInput(dt, throttle, targetYaw, spaceHeld, spaceTapped) {
+  applyRiderInput(dt, throttle, targetYaw, spaceHeld, spaceTapped, steer = 0) {
     let targetSpeed = 0;
     let accel = HORSE_ACCEL;
 
@@ -230,6 +232,11 @@ export class Horse {
       if (Math.abs(diff) > 0.01) {
         this.yaw += Math.sign(diff) * Math.min(Math.abs(diff), maxTurn);
       }
+    }
+
+    // A/D direct yaw adjustment — works at any speed (also when stationary or reversing)
+    if (steer !== 0) {
+      this.yaw -= steer * HORSE_TURN_SPEED * dt;
     }
 
     // Apply velocity in facing direction
@@ -357,7 +364,8 @@ export class Horse {
     this.mesh.traverse((child) => {
       if (child.isMesh) {
         child.geometry.dispose();
-        child.material.dispose();
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        for (const m of mats) { if (m && m.dispose) m.dispose(); }
       }
     });
   }

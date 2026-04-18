@@ -257,11 +257,15 @@ export class Player {
     if (input.isDown('KeyW')) throttle = 1;
     else if (input.isDown('KeyS')) throttle = -1;
 
+    let steer = 0;
+    if (input.isDown('KeyA')) steer = -1;
+    else if (input.isDown('KeyD')) steer = 1;
+
     const spaceHeld = input.isDown('Space');
     const spaceTapped = input.isPressed('Space');
 
     // Horse steers toward camera yaw; camera moves freely via mouse
-    horse.applyRiderInput(dt, throttle, this._yaw, spaceHeld, spaceTapped);
+    horse.applyRiderInput(dt, throttle, this._yaw, spaceHeld, spaceTapped, steer);
   }
 
   _syncMeshMounted() {
@@ -355,7 +359,7 @@ export class Player {
   // ─── Whistle ──────────────────────────────────────────────────────────────
 
   /**
-   * Call owned horse to player. If no horse is owned or horse is too far, spawn nearby.
+   * Call owned horse to player. If horse is out of HORSE_WHISTLE_RANGE, teleport it nearby first.
    * @param {import('./Horse.js').Horse[]} allHorses — all horses in the world
    */
   whistle(allHorses) {
@@ -368,9 +372,36 @@ export class Player {
     const dz = playerPos.z - horsePos.z;
     const distSq = dx * dx + dz * dz;
 
-    if (distSq <= HORSE_WHISTLE_RANGE * HORSE_WHISTLE_RANGE) {
-      this.ownedHorse.callToPlayer(playerPos);
+    if (distSq > HORSE_WHISTLE_RANGE * HORSE_WHISTLE_RANGE) {
+      // Horse is too far — teleport it to a clear spot near the player
+      const spawnDist = 20; // spawn 20 units away so it gallops in visibly
+      const angles = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+      let bestX = playerPos.x + spawnDist;
+      let bestZ = playerPos.z;
+      for (const angle of angles) {
+        const cx = playerPos.x + Math.cos(angle) * spawnDist;
+        const cz = playerPos.z + Math.sin(angle) * spawnDist;
+        // Pick first candidate not overlapping another horse
+        const blocked = allHorses.some((h) => {
+          if (h === this.ownedHorse) return false;
+          const hdx = h.position.x - cx;
+          const hdz = h.position.z - cz;
+          return hdx * hdx + hdz * hdz < 9; // 3-unit clearance
+        });
+        if (!blocked) {
+          bestX = cx;
+          bestZ = cz;
+          break;
+        }
+      }
+
+      const halfH = this.ownedHorse.body.shapes[0].halfExtents.y;
+      this.ownedHorse.body.position.set(bestX, halfH + 0.05, bestZ);
+      this.ownedHorse.body.velocity.set(0, 0, 0);
+      this.ownedHorse.speed = 0;
     }
+
+    this.ownedHorse.callToPlayer(playerPos);
   }
 
   /** World-space position of the player's feet (useful for other systems). */
