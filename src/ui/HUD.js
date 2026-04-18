@@ -216,7 +216,7 @@ export class HUD {
       <div id="hud-prompt">
         <div class="hud-prompt-box">
           Click to play
-          <div class="hud-prompt-sub">WASD &nbsp;|&nbsp; Mouse look &nbsp;|&nbsp; Shift sprint &nbsp;|&nbsp; Space jump</div>
+          <div class="hud-prompt-sub">WASD &nbsp;|&nbsp; Mouse look &nbsp;|&nbsp; Shift sprint &nbsp;|&nbsp; Space jump &nbsp;|&nbsp; F mount/dismount &nbsp;|&nbsp; H whistle</div>
         </div>
       </div>
     `;

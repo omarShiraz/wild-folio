@@ -80,6 +80,7 @@
 - [ ] Load 3–4 civilian NPC models, scatter around town with simple waypoint wander AI
 - [ ] NPC dialogue barks on proximity (text bubble)
 - [ ] **Gun system:** equip revolver (Q), aim (RMB for ADS + slow-mo "dead eye" lite), shoot (LMB), reload (R), 6-shot cylinder + reload animation, bullet raycast + impact decals
+- [ ] **Mounted combat (aim-mode split):** When RMB held while mounted, mouse controls free-aim crosshair (not camera orbit). Horse holds its current heading; A/D apply slight yaw adjustments. Camera snaps to tight over-the-shoulder offset. Horse auto-maintains current speed so rider doesn't need W + aim simultaneously. `_updateMountedMovement` branches on `input.rmb`: aiming → pass `horse.yaw` as targetYaw; not aiming → pass `cameraYaw` (existing behavior). Shot ray originates from camera center to avoid parallax.
 - [ ] NPC reactions: panic-flee on gun drawn, ragdoll (or simple falling animation) on hit, witnesses broadcast `crime:witnessed` event
 - [ ] **WantedSystem:** accumulates stars based on witnessed events, decays if the player leaves town and lays low
 - [ ] HUD wanted stars pulse red when rising
@@ -95,6 +96,7 @@
 
 - [ ] **Trigger:** wanted hits 3 → HUD message "★ ★ ★ WANTED DEAD OR ALIVE", spawn first wave of sheriffs at the edges of town
 - [ ] **Sheriff AI:** pathfind toward player (nav mesh or simple A* on a grid, or just steering behaviors + obstacle avoidance), stop at preferred range, shoot with spread, take cover behind props occasionally
+- [ ] **Mounted wave shooter:** Player can fight waves on horseback. Reuse Phase 4 mounted combat aim mode — same RMB branch, same camera. Horse should flee/dodge autonomously or let player steer with A/D while aiming. Sheriffs can shoot at mounted player and horse; horse can take damage and buck player off if health depleted.
 - [ ] **Wave manager:** wave N has `3 + N` sheriffs, every 3rd wave is an "elite" wave (faster, more HP), infinite
 - [ ] Score = `kills × waveNumber`, multiplier for headshots and no-damage waves
 - [ ] Health regen briefly between waves; ammo crates drop on wave clear

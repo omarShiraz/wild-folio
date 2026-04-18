@@ -8,6 +8,9 @@ import {
   CAM_PITCH_MIN, CAM_PITCH_MAX, CAM_CLIP_BUFFER,
   MOUSE_SENSITIVITY,
   COLOR_PLAYER_BODY, COLOR_PLAYER_HAT,
+  HORSE_CAM_DISTANCE, HORSE_CAM_HEIGHT_OFFSET, HORSE_CAM_LERP_FACTOR,
+  HORSE_BODY_H, HORSE_LEG_H,
+  HORSE_WHISTLE_RANGE,
 } from '../utils/constants.js';
 
 export class Player {
@@ -18,6 +21,7 @@ export class Player {
    * @param {import('../core/Input.js').Input} input
    */
   constructor(scene, physics, camera, input) {
+    this._scene   = scene;
     this._physics = physics;
     this._camera  = camera;
     this._input   = input;
@@ -25,6 +29,13 @@ export class Player {
     this._yaw        = 0;     // horizontal look (radians)
     this._pitch      = 0;     // vertical look (radians)
     this._isGrounded = false;
+
+    // ── Mount state ──
+    /** @type {import('./Horse.js').Horse|null} */
+    this.mountedHorse = null;
+    /** @type {import('./Horse.js').Horse|null} horse assigned to this player */
+    this.ownedHorse = null;
+    this._mountCooldown = 0; // seconds — prevents mount+dismount on same frame
 
     // Reusable objects — allocated once to avoid GC pressure in the loop
     this._yAxis    = new THREE.Vector3(0, 1, 0);
@@ -106,11 +117,20 @@ export class Player {
 
   /** @param {number} dt — seconds since last frame */
   update(dt) {
+    if (this._mountCooldown > 0) this._mountCooldown -= dt;
+
     this._updateLook();
-    this._updateGrounded();
-    this._updateMovement();
-    this._syncMesh();
-    this._updateCamera();
+
+    if (this.mountedHorse) {
+      this._updateMountedMovement(dt);
+      this._syncMeshMounted();
+      this._updateMountedCamera();
+    } else {
+      this._updateGrounded();
+      this._updateMovement();
+      this._syncMesh();
+      this._updateCamera();
+    }
   }
 
   _updateLook() {
@@ -197,9 +217,10 @@ export class Player {
    * returns a safe position just in front of the surface.
    * @param {THREE.Vector3} pivot
    * @param {THREE.Vector3} target
+   * @param {number} maxDist — spring-arm length for current mode
    * @returns {THREE.Vector3}
    */
-  _clipCamera(pivot, target) {
+  _clipCamera(pivot, target, maxDist = CAM_DISTANCE) {
     this._cannonFrom.set(pivot.x, pivot.y, pivot.z);
     this._cannonTo.set(target.x, target.y, target.z);
     this._rayResult.reset();
@@ -212,7 +233,8 @@ export class Player {
     if (
       this._rayResult.hasHit &&
       this._rayResult.body !== this.body &&       // ignore own capsule
-      this._rayResult.distance < CAM_DISTANCE
+      (!this.mountedHorse || this._rayResult.body !== this.mountedHorse.body) &&
+      this._rayResult.distance < maxDist
     ) {
       const safeDist = Math.max(0, this._rayResult.distance - CAM_CLIP_BUFFER);
       return pivot.clone()
@@ -224,8 +246,170 @@ export class Player {
     return target;
   }
 
+  // ─── Mounted movement ─────────────────────────────────────────────────────
+
+  /** @param {number} dt */
+  _updateMountedMovement(dt) {
+    const input = this._input;
+    const horse = this.mountedHorse;
+
+    let throttle = 0;
+    if (input.isDown('KeyW')) throttle = 1;
+    else if (input.isDown('KeyS')) throttle = -1;
+
+    let steer = 0;
+    if (input.isDown('KeyA')) steer = -1;
+    else if (input.isDown('KeyD')) steer = 1;
+
+    const spaceHeld = input.isDown('Space');
+    const spaceTapped = input.isPressed('Space');
+
+    // Horse steers toward camera yaw; camera moves freely via mouse
+    horse.applyRiderInput(dt, throttle, this._yaw, spaceHeld, spaceTapped, steer);
+  }
+
+  _syncMeshMounted() {
+    const hp = this.mountedHorse.body.position;
+    // Body center is at (LEG_H + BODY_H)/2 above ground
+    // Model at 0.25 scale is 3.2m tall; saddle ~65% up from ground
+    const groundY = hp.y - (HORSE_LEG_H + HORSE_BODY_H) / 2;
+    const seatY = groundY + 12.8 * 0.25 * 0.65;
+    this.mesh.position.set(hp.x, seatY, hp.z);
+    this.mesh.rotation.y = this.mountedHorse.yaw;
+  }
+
+  _updateMountedCamera() {
+    const hp = this.mountedHorse.body.position;
+    this._pivot.set(hp.x, hp.y + HORSE_CAM_HEIGHT_OFFSET, hp.z);
+
+    // Camera orbits freely with mouse yaw/pitch (not locked to horse facing)
+    this._camEuler.set(this._pitch, this._yaw, 0);
+    this._camOffset.set(0, 0, HORSE_CAM_DISTANCE).applyEuler(this._camEuler);
+    this._camTarget.addVectors(this._pivot, this._camOffset);
+
+    const final = this._clipCamera(this._pivot, this._camTarget, HORSE_CAM_DISTANCE);
+
+    this._camera.position.lerp(final, HORSE_CAM_LERP_FACTOR);
+    this._camera.lookAt(this._pivot);
+  }
+
+  // ─── Mount / Dismount ─────────────────────────────────────────────────────
+
+  /**
+   * Mount a horse. Called by InteractionSystem callback.
+   * @param {import('./Horse.js').Horse} horse
+   */
+  mount(horse) {
+    if (this.mountedHorse) return; // already mounted
+    if (!this._isGrounded) return; // can't mount mid-air
+    this._mountInternal(horse);
+  }
+
+  /**
+   * Force-mount without grounded check (used for initial spawn).
+   * @param {import('./Horse.js').Horse} horse
+   */
+  mountImmediate(horse) {
+    if (this.mountedHorse) return;
+    this._mountInternal(horse);
+  }
+
+  /** @param {import('./Horse.js').Horse} horse */
+  _mountInternal(horse) {
+    this.mountedHorse = horse;
+    this._mountCooldown = 0.4;
+    horse.onMount('player');
+
+    this._yaw = horse.yaw;
+
+    // Disable player physics body while riding
+    this.body.velocity.set(0, 0, 0);
+    this._physics.removeBody(this.body);
+
+    this.mesh.visible = true;
+  }
+
+  dismount() {
+    if (!this.mountedHorse) return;
+    if (this._mountCooldown > 0) return; // don't dismount during cooldown
+
+    const horse = this.mountedHorse;
+    horse.onDismount();
+
+    // Find dismount position (left side of horse, on ground)
+    const dismountPos = horse.getDismountPosition();
+
+    // Re-add player body and place it at dismount position
+    this.body.position.set(dismountPos.x, PLAYER_HEIGHT / 2 + 0.1, dismountPos.z);
+    this.body.velocity.set(0, 0, 0);
+    this._physics.addBody(this.body);
+
+    // Face same direction as horse
+    this._yaw = horse.yaw;
+
+    this.mountedHorse = null;
+    this.mesh.visible = true;
+  }
+
+  /** @returns {boolean} */
+  get isMounted() {
+    return this.mountedHorse !== null;
+  }
+
+  // ─── Whistle ──────────────────────────────────────────────────────────────
+
+  /**
+   * Call owned horse to player. If horse is out of HORSE_WHISTLE_RANGE, teleport it nearby first.
+   * @param {import('./Horse.js').Horse[]} allHorses — all horses in the world
+   */
+  whistle(allHorses) {
+    if (this.mountedHorse) return;
+    if (!this.ownedHorse) return;
+
+    const playerPos = this.position;
+    const horsePos = this.ownedHorse.position;
+    const dx = playerPos.x - horsePos.x;
+    const dz = playerPos.z - horsePos.z;
+    const distSq = dx * dx + dz * dz;
+
+    if (distSq > HORSE_WHISTLE_RANGE * HORSE_WHISTLE_RANGE) {
+      // Horse is too far — teleport it to a clear spot near the player
+      const spawnDist = 20; // spawn 20 units away so it gallops in visibly
+      const angles = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+      let bestX = playerPos.x + spawnDist;
+      let bestZ = playerPos.z;
+      for (const angle of angles) {
+        const cx = playerPos.x + Math.cos(angle) * spawnDist;
+        const cz = playerPos.z + Math.sin(angle) * spawnDist;
+        // Pick first candidate not overlapping another horse
+        const blocked = allHorses.some((h) => {
+          if (h === this.ownedHorse) return false;
+          const hdx = h.position.x - cx;
+          const hdz = h.position.z - cz;
+          return hdx * hdx + hdz * hdz < 9; // 3-unit clearance
+        });
+        if (!blocked) {
+          bestX = cx;
+          bestZ = cz;
+          break;
+        }
+      }
+
+      const halfH = this.ownedHorse.body.shapes[0].halfExtents.y;
+      this.ownedHorse.body.position.set(bestX, halfH + 0.05, bestZ);
+      this.ownedHorse.body.velocity.set(0, 0, 0);
+      this.ownedHorse.speed = 0;
+    }
+
+    this.ownedHorse.callToPlayer(playerPos);
+  }
+
   /** World-space position of the player's feet (useful for other systems). */
   get position() {
+    if (this.mountedHorse) {
+      const hp = this.mountedHorse.body.position;
+      return new THREE.Vector3(hp.x, 0, hp.z);
+    }
     const p = this.body.position;
     return new THREE.Vector3(p.x, p.y - PLAYER_HEIGHT / 2, p.z);
   }
