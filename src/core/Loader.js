@@ -17,9 +17,11 @@ export const Loader = {
    */
   loadGLTF(path) {
     if (!_cache.has(path)) {
-      _cache.set(path, new Promise((resolve, reject) => {
+      const p = new Promise((resolve, reject) => {
         gltfLoader.load(path, resolve, undefined, reject);
-      }));
+      });
+      p.catch(() => _cache.delete(path));
+      _cache.set(path, p);
     }
     return _cache.get(path);
   },

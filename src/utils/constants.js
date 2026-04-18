@@ -100,7 +100,7 @@ export const HORSE_TAP_KICK      = 8;     // instant speed added per Space tap
 export const HORSE_TURN_SPEED    = 3.5;   // radians/s at walk; scales down with speed
 export const HORSE_MOUNT_RANGE   = 3.0;   // max distance to mount
 export const HORSE_WHISTLE_RANGE = 50;    // within this range horse runs to player
-export const HORSE_WHISTLE_SPEED = 14;    // speed of horse when responding to whistle
+export const HORSE_WHISTLE_SPEED = 38;    // speed of horse when responding to whistle
 export const HORSE_ARRIVE_DIST   = 3.5;   // stop this far from player when whistled
 
 // ─── Horse — colors ─────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import {
   COLOR_PLAYER_BODY, COLOR_PLAYER_HAT,
   HORSE_CAM_DISTANCE, HORSE_CAM_HEIGHT_OFFSET, HORSE_CAM_LERP_FACTOR,
   HORSE_BODY_H, HORSE_LEG_H,
+  HORSE_WHISTLE_RANGE,
 } from '../utils/constants.js';
 
 export class Player {
@@ -358,11 +359,16 @@ export class Player {
    * @param {import('./Horse.js').Horse[]} allHorses — all horses in the world
    */
   whistle(allHorses) {
-    if (this.mountedHorse) return; // can't whistle while mounted
+    if (this.mountedHorse) return;
+    if (!this.ownedHorse) return;
 
     const playerPos = this.position;
+    const horsePos = this.ownedHorse.position;
+    const dx = playerPos.x - horsePos.x;
+    const dz = playerPos.z - horsePos.z;
+    const distSq = dx * dx + dz * dz;
 
-    if (this.ownedHorse) {
+    if (distSq <= HORSE_WHISTLE_RANGE * HORSE_WHISTLE_RANGE) {
       this.ownedHorse.callToPlayer(playerPos);
     }
   }

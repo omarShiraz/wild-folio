@@ -282,15 +282,14 @@ export class Horse {
       this.yaw += Math.sign(yawDiff) * Math.min(Math.abs(yawDiff), maxYawStep);
     }
 
-    // Gradually accelerate up to gallop, then ease down when close
+    // Gradually accelerate up to whistle speed, then ease down when close
     const slowDownDist = 15;
     let targetSpeed;
     if (dist < slowDownDist) {
-      // Lerp from gallop down to walk as we approach
       const t = dist / slowDownDist;
-      targetSpeed = HORSE_WALK_SPEED + (HORSE_GALLOP_SPEED - HORSE_WALK_SPEED) * t;
+      targetSpeed = HORSE_WALK_SPEED + (HORSE_WHISTLE_SPEED - HORSE_WALK_SPEED) * t;
     } else {
-      targetSpeed = HORSE_GALLOP_SPEED;
+      targetSpeed = HORSE_WHISTLE_SPEED;
     }
 
     // Accelerate / decelerate toward target
