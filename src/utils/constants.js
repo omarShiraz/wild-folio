@@ -78,6 +78,44 @@ export const COLOR_FENCE_POST    = 0x8b6340;
 export const COLOR_FENCE_RAIL    = 0x9c7a52;
 export const COLOR_HITCHING      = 0x7a5230;
 
+// ─── Horse ──────────────────────────────────────────────────────────────────
+export const HORSE_BODY_W        = 0.8;   // width (side-to-side)
+export const HORSE_BODY_H        = 1.0;   // body height (not counting legs)
+export const HORSE_BODY_L        = 2.2;   // length (front-to-back)
+export const HORSE_LEG_RADIUS    = 0.08;
+export const HORSE_LEG_H         = 0.9;
+export const HORSE_HEAD_W        = 0.35;
+export const HORSE_HEAD_H        = 0.4;
+export const HORSE_HEAD_L        = 0.7;
+export const HORSE_NECK_L        = 0.6;
+export const HORSE_MASS          = 400;
+export const HORSE_WALK_SPEED    = 20;
+export const HORSE_TROT_SPEED    = 32;
+export const HORSE_CANTER_SPEED  = 42;    // W + holding Space (constant jog)
+export const HORSE_GALLOP_SPEED  = 56;    // W + tapping Space (sprint cap)
+export const HORSE_ACCEL         = 25;    // units/s² when accelerating
+export const HORSE_DECEL         = 14;    // units/s² passive speed bleed
+export const HORSE_GALLOP_ACCEL  = 40;    // burst acceleration per Space tap
+export const HORSE_TAP_KICK      = 8;     // instant speed added per Space tap
+export const HORSE_TURN_SPEED    = 3.5;   // radians/s at walk; scales down with speed
+export const HORSE_MOUNT_RANGE   = 3.0;   // max distance to mount
+export const HORSE_WHISTLE_RANGE = 50;    // within this range horse runs to player
+export const HORSE_WHISTLE_SPEED = 14;    // speed of horse when responding to whistle
+export const HORSE_ARRIVE_DIST   = 3.5;   // stop this far from player when whistled
+
+// ─── Horse — colors ─────────────────────────────────────────────────────────
+export const COLOR_HORSE_BODY    = 0x8b5a2b;  // warm brown
+export const COLOR_HORSE_DARK    = 0x3e2415;  // mane, tail, hooves
+export const COLOR_HORSE_LIGHT   = 0xc4956a;  // muzzle blaze
+
+// ─── Horse — camera (mounted) ───────────────────────────────────────────────
+export const HORSE_CAM_DISTANCE      = 10;
+export const HORSE_CAM_HEIGHT_OFFSET = 4.0;
+export const HORSE_CAM_LERP_FACTOR   = 0.85;
+
+// ─── Interaction ────────────────────────────────────────────────────────────
+export const INTERACTION_POLL_RATE = 0.1; // seconds between proximity checks
+
 // ─── Player — colors & spawn ─────────────────────────────────────────────────
 export const COLOR_PLAYER_BODY  = 0x4a3728;  // dark brown duster
 export const COLOR_PLAYER_HAT   = 0x1a0e06;  // near-black felt
