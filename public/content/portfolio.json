@@ -1,0 +1,46 @@
+{
+  "name": "Omar Shiraz",
+  "title": "Software Engineer",
+  "bio": "A builder at heart — I write code that ships, systems that scale, and occasionally I get into trouble in small Western towns.",
+  "resume": "/assets/resume.pdf",
+  "experience": [
+    {
+      "id": "exp-1",
+      "company": "Placeholder Co.",
+      "title": "Software Engineer",
+      "start": "2022-01",
+      "end": null,
+      "bullets": [
+        "Replace this with your real experience — data lives here, never in entity files",
+        "Each entry maps to a wanted poster inside the Sheriff's Office"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj-1",
+      "name": "This Portfolio",
+      "description": "A playable Three.js portfolio inspired by Red Dead Redemption 2. A portfolio you play, not scroll.",
+      "stack": ["Three.js", "Vite", "cannon-es", "Howler.js"],
+      "url": null,
+      "thumbnail": null
+    }
+  ],
+  "skills": [
+    { "category": "Languages", "items": ["JavaScript", "Python", "TypeScript"] },
+    { "category": "Frontend", "items": ["Three.js", "HTML", "CSS"] },
+    { "category": "Tools", "items": ["Vite", "Git", "Node.js"] }
+  ],
+  "contacts": [
+    {
+      "label": "Email",
+      "value": "omarshiraz88@gmail.com",
+      "url": "mailto:omarshiraz88@gmail.com"
+    },
+    {
+      "label": "GitHub",
+      "value": "github.com/omars",
+      "url": null
+    }
+  ]
+}
