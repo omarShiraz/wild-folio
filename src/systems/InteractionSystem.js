@@ -6,12 +6,14 @@ import { INTERACTION_POLL_RATE } from '../utils/constants.js';
 
 /**
  * @typedef {Object} InteractionDef
- * @property {Interactable} target   — the entity to interact with
- * @property {number} range          — max distance for prompt
- * @property {string} prompt         — e.g. "Press F to mount"
- * @property {string} key            — Input code, e.g. 'KeyF'
- * @property {() => void} onInteract — callback when key pressed in range
- * @property {() => boolean} [enabled] — optional guard; default true
+ * @property {Interactable} [target]    — entity whose body/mesh position is the trigger centre.
+ *                                        Ignored when `position` is set.
+ * @property {THREE.Vector3} [position] — fixed world-space trigger centre (takes priority over target)
+ * @property {number} range             — trigger radius in world units
+ * @property {string} prompt            — e.g. "Press F to mount"
+ * @property {string} key               — Input code, e.g. 'KeyF'
+ * @property {() => void} onInteract    — callback when key pressed in range
+ * @property {() => boolean} [enabled]  — optional guard; default true
  */
 
 const CSS = `
@@ -77,10 +79,15 @@ export class InteractionSystem {
   }
 
   /**
-   * Register an interactable.
+   * Register an interactable. Silently drops defs that have neither a fixed
+   * position nor a target entity, since _findClosest cannot resolve their location.
    * @param {InteractionDef} def
    */
   register(def) {
+    if (!def.position && !def.target) {
+      console.warn('[InteractionSystem] register() called without position or target — ignored', def);
+      return;
+    }
     this._defs.push(def);
   }
 
@@ -128,9 +135,13 @@ export class InteractionSystem {
     for (const def of this._defs) {
       if (def.enabled && !def.enabled()) continue;
 
-      const tp = def.target.body
-        ? def.target.body.position
-        : def.target.mesh.position;
+      // Fixed position takes priority; fall back to entity body/mesh position
+      if (!def.position && !def.target) {
+        console.warn('[InteractionSystem] def missing both position and target — skipped');
+        continue;
+      }
+      const tp = def.position
+        ?? (def.target.body ? def.target.body.position : def.target.mesh.position);
       const dx = playerPos.x - tp.x;
       const dz = playerPos.z - tp.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
@@ -159,6 +170,12 @@ export class InteractionSystem {
 
   _hidePrompt() {
     this._el.classList.remove('visible');
+  }
+
+  /** Force-hide the prompt and clear active interaction (e.g. when entering a building). */
+  clear() {
+    this._active = null;
+    this._hidePrompt();
   }
 
   dispose() {

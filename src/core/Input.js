@@ -13,6 +13,12 @@ export class Input {
     this.mouseDX = 0;
     this.mouseDY = 0;
     this.isPointerLocked = false;
+    /** Set to true while inside a building interior to prevent click-to-lock. */
+    this.suppressPointerLock = false;
+    /** Set from Game.js after the renderer is created; only canvas clicks request pointer lock. */
+    this.canvas = null;
+    /** Set to true to freeze all keyboard/mouse input (e.g. portfolio overlay open). */
+    this.suppressInput = false;
 
     this._bindEvents();
   }
@@ -38,19 +44,26 @@ export class Input {
       this.isPointerLocked = document.pointerLockElement === document.body;
     });
 
-    // Click canvas to request pointer lock (skip if clicking debug GUI)
+    // Only request pointer lock when the renderer canvas itself is clicked.
+    // Keeps overlay buttons and lil-gui from accidentally locking the pointer.
     document.addEventListener('click', (e) => {
-      if (!this.isPointerLocked && !e.target.closest('.lil-gui')) {
+      if (
+        this.canvas &&
+        !this.isPointerLocked &&
+        !this.suppressPointerLock &&
+        !e.target.closest('.lil-gui') &&
+        e.composedPath().includes(this.canvas)
+      ) {
         document.body.requestPointerLock();
       }
     });
   }
 
   /** @param {string} code — e.g. 'KeyW', 'ShiftLeft', 'Space' */
-  isDown(code) { return this._held.has(code); }
+  isDown(code) { return this.suppressInput ? false : this._held.has(code); }
 
   /** True only the first frame the key is held. */
-  isPressed(code) { return this._pressed.has(code); }
+  isPressed(code) { return this.suppressInput ? false : this._pressed.has(code); }
 
   /** Call once per frame after consuming input state. */
   flush() {

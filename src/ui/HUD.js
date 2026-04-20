@@ -145,11 +145,35 @@ export class HUD {
     this._el.innerHTML = this._template();
     document.body.appendChild(this._el);
 
+    this._interiorMode = false;
+
     // Auto-hide the click prompt when pointer lock is acquired
     document.addEventListener('pointerlockchange', () => {
+      if (this._interiorMode) return;
       const locked = document.pointerLockElement === document.body;
       this._el.querySelector('#hud-prompt').style.display = locked ? 'none' : 'flex';
     });
+  }
+
+  /**
+   * Call with true when entering a building interior, false on exit.
+   * Hides the click-to-play prompt while inside so it doesn't flash on screen.
+   * @param {boolean} inside
+   */
+  setInteriorMode(inside) {
+    this._interiorMode = inside;
+    if (!this._el) return;
+    this._el.querySelector('#hud-prompt').style.display = inside ? 'none' : 'flex';
+  }
+
+  /**
+   * Show or hide the interaction-prompt element (#interaction-prompt).
+   * Used by Game when entering/exiting a building so the DOM is not touched directly.
+   * @param {boolean} visible
+   */
+  setInteractionPromptVisible(visible) {
+    const el = document.getElementById('interaction-prompt');
+    if (el) el.style.display = visible ? '' : 'none';
   }
 
   unmount() {

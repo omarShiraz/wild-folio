@@ -12,7 +12,20 @@ import {
   BUILDING_CONFIGS,
 } from '../utils/constants.js';
 import { Building } from './Building.js';
+import { SheriffsOffice } from './buildings/SheriffsOffice.js';
+import { Saloon } from './buildings/Saloon.js';
+import { GeneralStore } from './buildings/GeneralStore.js';
+import { PostOffice } from './buildings/PostOffice.js';
+import { Gunsmith } from './buildings/Gunsmith.js';
 import { Props } from './Props.js';
+
+const BUILDING_CLASS_MAP = {
+  "Sheriff's Office": SheriffsOffice,
+  'Saloon':           Saloon,
+  'General Store':    GeneralStore,
+  'Post Office':      PostOffice,
+  'Gunsmith':         Gunsmith,
+};
 
 export class Town {
   constructor() {
@@ -43,7 +56,10 @@ export class Town {
   }
 
   _initBuildings(scene, physics) {
-    this.buildings = BUILDING_CONFIGS.map((cfg) => new Building(cfg, scene, physics));
+    this.buildings = BUILDING_CONFIGS.map((cfg) => {
+      const Cls = BUILDING_CLASS_MAP[cfg.name] ?? Building;
+      return new Cls(cfg, scene, physics);
+    });
   }
 
   _initProps(scene) {

@@ -1,46 +1,115 @@
 {
-  "name": "Omar Shiraz",
-  "title": "Software Engineer",
-  "bio": "A builder at heart — I write code that ships, systems that scale, and occasionally I get into trouble in small Western towns.",
-  "resume": "/assets/resume.pdf",
+  "name": "Your Name",
+  "title": "Your Job Title",
+  "bio": "A short bio about yourself — who you are, what you do, what you're looking for. Replace this with your real bio.",
+  "resume": "/resume.pdf",
+
   "experience": [
     {
       "id": "exp-1",
-      "company": "Placeholder Co.",
-      "title": "Software Engineer",
+      "company": "Acme Co.",
+      "title": "Frontend Engineer",
       "start": "2022-01",
-      "end": null,
+      "end": "2024-01",
+      "location": "City, Country",
       "bullets": [
-        "Replace this with your real experience — data lives here, never in entity files",
-        "Each entry maps to a wanted poster inside the Sheriff's Office"
+        "PLACEHOLDER — Replace with a real achievement or responsibility",
+        "PLACEHOLDER — Quantify impact where possible (e.g. reduced load time by 40%)",
+        "PLACEHOLDER — Third bullet if needed"
+      ]
+    },
+    {
+      "id": "exp-2",
+      "company": "Startup Inc.",
+      "title": "Junior Developer",
+      "start": "2021-01",
+      "end": "2022-01",
+      "location": "City, Country",
+      "bullets": [
+        "PLACEHOLDER — Replace with a real achievement or responsibility",
+        "PLACEHOLDER — Second bullet if needed"
       ]
     }
   ],
+
   "projects": [
     {
       "id": "proj-1",
-      "name": "This Portfolio",
-      "description": "A playable Three.js portfolio inspired by Red Dead Redemption 2. A portfolio you play, not scroll.",
-      "stack": ["Three.js", "Vite", "cannon-es", "Howler.js"],
+      "name": "Project Alpha",
+      "description": "PLACEHOLDER — One or two sentences describing what this project does and why it matters.",
+      "stack": ["Tech A", "Tech B", "Tech C"],
+      "url": null,
+      "thumbnail": null
+    },
+    {
+      "id": "proj-2",
+      "name": "Project Beta",
+      "description": "PLACEHOLDER — One or two sentences describing what this project does and why it matters.",
+      "stack": ["Tech A", "Tech B"],
+      "url": null,
+      "thumbnail": null
+    },
+    {
+      "id": "proj-3",
+      "name": "Project Gamma",
+      "description": "PLACEHOLDER — One or two sentences describing what this project does and why it matters.",
+      "stack": ["Tech A", "Tech B", "Tech C", "Tech D"],
       "url": null,
       "thumbnail": null
     }
   ],
+
   "skills": [
-    { "category": "Languages", "items": ["JavaScript", "Python", "TypeScript"] },
-    { "category": "Frontend", "items": ["Three.js", "HTML", "CSS"] },
-    { "category": "Tools", "items": ["Vite", "Git", "Node.js"] }
-  ],
-  "contacts": [
     {
-      "label": "Email",
-      "value": "omarshiraz88@gmail.com",
-      "url": "mailto:omarshiraz88@gmail.com"
+      "category": "Frontend",
+      "weapon": "revolver",
+      "items": ["PLACEHOLDER", "PLACEHOLDER", "PLACEHOLDER", "PLACEHOLDER"]
     },
     {
+      "category": "Backend",
+      "weapon": "rifle",
+      "items": ["PLACEHOLDER", "PLACEHOLDER", "PLACEHOLDER", "PLACEHOLDER"]
+    },
+    {
+      "category": "DevOps",
+      "weapon": "shotgun",
+      "items": ["PLACEHOLDER", "PLACEHOLDER", "PLACEHOLDER"]
+    },
+    {
+      "category": "Tools",
+      "weapon": "knife",
+      "items": ["PLACEHOLDER", "PLACEHOLDER", "PLACEHOLDER"]
+    }
+  ],
+
+  "contacts": [
+    {
+      "id": "contact-1",
+      "label": "Email",
+      "value": "your.email@example.com",
+      "url": "mailto:your.email@example.com",
+      "icon": "envelope"
+    },
+    {
+      "id": "contact-2",
       "label": "GitHub",
-      "value": "github.com/omars",
-      "url": null
+      "value": "github.com/your-username",
+      "url": "https://github.com/your-username",
+      "icon": "github"
+    },
+    {
+      "id": "contact-3",
+      "label": "LinkedIn",
+      "value": "linkedin.com/in/your-username",
+      "url": "https://linkedin.com/in/your-username",
+      "icon": "linkedin"
+    },
+    {
+      "id": "contact-4",
+      "label": "Website",
+      "value": "yourwebsite.com",
+      "url": "https://yourwebsite.com",
+      "icon": "globe"
     }
   ]
 }

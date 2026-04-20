@@ -35,8 +35,8 @@ export const BUILDING_SETBACK    = 7;    // distance from street centre to build
 // ─── Lighting ───────────────────────────────────────────────────────────────
 export const SUN_COLOR           = 0xffb347;
 export const SUN_INTENSITY       = 3.0;
-export const AMBIENT_COLOR       = 0x5c3d1e;
-export const AMBIENT_INTENSITY   = 0.4;
+export const AMBIENT_COLOR       = 0xc46010;  // deep sunset orange — warm shadow fill
+export const AMBIENT_INTENSITY   = 0.9;       // enough to read shadowed faces, preserves contrast
 export const SHADOW_MAP_SIZE     = 2048;
 
 // ─── Sky ────────────────────────────────────────────────────────────────────
@@ -44,8 +44,8 @@ export const SKY_TURBIDITY       = 8;
 export const SKY_RAYLEIGH        = 2;
 export const SKY_MIE_COEFF       = 0.005;
 export const SKY_MIE_DIR         = 0.7;
-export const SKY_SUN_ELEVATION   = 12;   // degrees above horizon (warm but readable)
-export const SKY_SUN_AZIMUTH     = 90;   // degrees — sun from the side, between buildings
+export const SKY_SUN_ELEVATION   = 15;   // low enough for drama, not kissing the horizon
+export const SKY_SUN_AZIMUTH     = 135;  // SE diagonal — slants across street and catches building fronts
 
 // ─── Fog ────────────────────────────────────────────────────────────────────
 export const FOG_COLOR  = 0xc47a3a;
@@ -114,7 +114,8 @@ export const HORSE_CAM_HEIGHT_OFFSET = 4.0;
 export const HORSE_CAM_LERP_FACTOR   = 0.85;
 
 // ─── Interaction ────────────────────────────────────────────────────────────
-export const INTERACTION_POLL_RATE = 0.1; // seconds between proximity checks
+export const INTERACTION_POLL_RATE  = 0.1; // seconds between proximity checks
+export const DOOR_TRIGGER_RADIUS    = 3.0; // tight sphere around door centre
 
 // ─── Player — colors & spawn ─────────────────────────────────────────────────
 export const COLOR_PLAYER_BODY  = 0x4a3728;  // dark brown duster

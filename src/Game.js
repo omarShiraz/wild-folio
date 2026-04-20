@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import {
   MAX_FRAME_DELTA, TONE_MAPPING_EXPOSURE, SKY_TURBIDITY, SKY_RAYLEIGH,
-  HORSE_MOUNT_RANGE,
+  HORSE_MOUNT_RANGE, DOOR_TRIGGER_RADIUS,
   STREET_WIDTH, BUILDING_CONFIGS,
 } from './utils/constants.js';
+import { bus } from './core/EventBus.js';
 import { Physics } from './core/Physics.js';
 import { Input } from './core/Input.js';
 import { Town } from './world/Town.js';
@@ -13,6 +14,9 @@ import { HUD } from './ui/HUD.js';
 import { MobileBlock } from './ui/MobileBlock.js';
 import { InteractionSystem } from './systems/InteractionSystem.js';
 import { WantedSystem } from './systems/WantedSystem.js';
+import { InteriorManager } from './world/InteriorManager.js';
+import { PortfolioOverlay } from './ui/PortfolioOverlay.js';
+import { audioManager } from './core/AudioManager.js';
 import { Debug } from './utils/debug.js';
 
 export class Game {
@@ -35,6 +39,10 @@ export class Game {
     this.interactions = null;
     /** @type {WantedSystem|null} */
     this.wantedSystem = null;
+    /** @type {InteriorManager} */
+    this.interiorManager = new InteriorManager();
+    /** @type {PortfolioOverlay} */
+    this.portfolioOverlay = new PortfolioOverlay();
     /** @type {Debug|null} */
     this.debug   = null;
   }
@@ -44,7 +52,33 @@ export class Game {
     const isMobile = await MobileBlock.mount();
     if (isMobile) return;
 
+    // Load portfolio data once; buildings read from it when entered
+    this.portfolioData = await fetch('/content/portfolio.json')
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+        return r.json();
+      })
+      .catch((err) => {
+        console.error('[Game] Failed to load portfolio.json:', err.message ?? err);
+        return {};
+      });
+    this.interiorManager.portfolioData = this.portfolioData;
+
+    this.portfolioOverlay.mount(this.portfolioData, {
+      onOpen: () => {
+        this.input.suppressInput = true;
+        document.exitPointerLock();
+      },
+      onClose: () => {
+        this.input.suppressInput = false;
+        if (!this.interiorManager.isInside) {
+          document.body.requestPointerLock();
+        }
+      },
+    });
+
     this._initRenderer();
+    this.input.canvas = this.renderer.domElement;
     this._initCamera();
 
     // Town must go first: ground physics body must exist before the player spawns
@@ -57,7 +91,19 @@ export class Game {
     this.interactions = new InteractionSystem(this.input);
     this.wantedSystem = new WantedSystem(this.hud);
     this._registerHorseInteractions();
+    this._registerBuildingInteractions();
     this._bindHorseKeys();
+
+    bus.on('building:enter', ({ building }) => this._enterBuilding(building));
+
+    // Start outdoor ambient on first pointer lock (guarantees a user gesture has fired)
+    const onFirstLock = () => {
+      if (document.pointerLockElement === document.body) {
+        audioManager.playOutdoorAmbient();
+        document.removeEventListener('pointerlockchange', onFirstLock);
+      }
+    };
+    document.addEventListener('pointerlockchange', onFirstLock);
 
     this.debug = new Debug();
     this._wireDebugGUI();
@@ -174,6 +220,42 @@ export class Game {
     this.player.mount(horse);
   }
 
+  _registerBuildingInteractions() {
+    for (const building of this.town.buildings) {
+      this.interactions.register({
+        position: building.doorPosition,
+        range: DOOR_TRIGGER_RADIUS,
+        prompt: `Press E to enter — ${building.name}`,
+        key: 'KeyE',
+        onInteract: () => bus.emit('building:enter', { building }),
+        // Cannot enter while mounted
+        enabled: () => !this.player.isMounted,
+      });
+    }
+  }
+
+  /** @param {import('./world/Building.js').Building} building */
+  _enterBuilding(building) {
+    this.hud.setInteractionPromptVisible(false);
+    this.input.suppressPointerLock = true;
+    this.hud.setInteriorMode(true);
+    document.exitPointerLock();
+    audioManager.playBuildingAmbient(building.name);
+    this.interiorManager.enter(building);
+  }
+
+  _exitBuilding() {
+    audioManager.stopAmbient();
+    this.interiorManager.exit(() => {
+      this.input.suppressPointerLock = false;
+      this.hud.setInteriorMode(false);
+      this.hud.setInteractionPromptVisible(true);
+      audioManager.playOutdoorAmbient();
+      // Pointer lock is re-acquired on the next canvas click via Input's click handler,
+      // which runs with proper user activation (avoids the lost-activation issue in async callbacks).
+    });
+  }
+
   _bindHorseKeys() {
     // F key for dismount (handled outside InteractionSystem since player is mounted)
     // H key for whistle
@@ -196,24 +278,29 @@ export class Game {
     const dt = Math.min((timestamp - this._lastTime) / 1000, MAX_FRAME_DELTA);
     this._lastTime = timestamp;
 
-    // Physics runs its own fixed-timestep accumulator inside update()
     this.physics.update(dt);
 
-    // Update horses
-    for (const horse of this.horses) horse.update(dt);
+    if (this.interiorManager.isInside) {
+      // Interior: check for exit key, skip all outdoor simulation
+      if (this.interiorManager.update(dt, this.input)) {
+        this._exitBuilding();
+      }
+    } else {
+      for (const horse of this.horses) horse.update(dt);
+      this.player?.update(dt);
+      this.interactions?.update(dt, this.player?.position ?? new THREE.Vector3());
+      this.wantedSystem?.update(dt);
+      this._horseKeyHandler?.();
+    }
 
-    this.player?.update(dt);
-    this.interactions?.update(dt, this.player?.position ?? new THREE.Vector3());
-    this.wantedSystem?.update(dt);
-
-    // Horse key bindings (dismount F, whistle H) — must run before flush
-    this._horseKeyHandler?.();
-
-    // Flush pressed-keys + mouse delta after all systems have consumed them
     this.input.flush();
 
     this.debug.begin();
-    this.renderer.render(this.scene, this.camera);
+    if (this.interiorManager.isInside) {
+      this.interiorManager.render(this.renderer);
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
     this.debug.end();
 
     requestAnimationFrame((t) => this._loop(t));

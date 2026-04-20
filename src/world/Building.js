@@ -23,7 +23,12 @@ export class Building {
 
     /** @type {THREE.Vector3} world-space centre of this building */
     this.position = new THREE.Vector3(streetX, h / 2, centerZ);
-    this.name = name;
+    /** @type {THREE.Vector3} centre of the street-facing door at ground level */
+    this.doorPosition = new THREE.Vector3(streetX, 0, faceZ);
+    this.name   = name;
+    this.width  = w;
+    this.height = h;
+    this.depth  = d;
 
     this._buildMesh(scene, w, h, d, color);
     this._buildSign(scene, name, w, h, d, sideSign);
