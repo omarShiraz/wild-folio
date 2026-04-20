@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Building } from '../Building.js';
 import { show as showOverlay } from '../../ui/InteriorOverlay.js';
+import { escapeHtml } from '../../utils/math.js';
 
 const ICON_GLYPHS = {
   envelope: '✉',
@@ -71,8 +72,8 @@ function makeEnvelopeTexture(contact) {
 function telegramOverlayHtml(contact) {
   return `
     <div class="io-telegram-head">★ Western Union Telegram ★</div>
-    <div class="io-telegram-label">${contact.label ?? ''}</div>
-    <div class="io-telegram-value">${contact.value ?? ''}</div>
+    <div class="io-telegram-label">${escapeHtml(contact.label ?? '')}</div>
+    <div class="io-telegram-value">${escapeHtml(contact.value ?? '')}</div>
   `;
 }
 
@@ -149,6 +150,8 @@ export class PostOffice extends Building {
             showOverlay(telegramOverlayHtml(captured));
           } else if (captured.url) {
             window.open(captured.url, '_blank', 'noopener noreferrer');
+          } else {
+            showOverlay(telegramOverlayHtml(captured));
           }
         },
       });

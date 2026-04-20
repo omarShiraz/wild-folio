@@ -79,10 +79,15 @@ export class InteractionSystem {
   }
 
   /**
-   * Register an interactable.
+   * Register an interactable. Silently drops defs that have neither a fixed
+   * position nor a target entity, since _findClosest cannot resolve their location.
    * @param {InteractionDef} def
    */
   register(def) {
+    if (!def.position && !def.target) {
+      console.warn('[InteractionSystem] register() called without position or target — ignored', def);
+      return;
+    }
     this._defs.push(def);
   }
 
@@ -131,6 +136,10 @@ export class InteractionSystem {
       if (def.enabled && !def.enabled()) continue;
 
       // Fixed position takes priority; fall back to entity body/mesh position
+      if (!def.position && !def.target) {
+        console.warn('[InteractionSystem] def missing both position and target — skipped');
+        continue;
+      }
       const tp = def.position
         ?? (def.target.body ? def.target.body.position : def.target.mesh.position);
       const dx = playerPos.x - tp.x;

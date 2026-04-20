@@ -46,6 +46,8 @@ export class InteriorManager {
     /** @type {import('./Building.js').Building|null} */
     this._currentBuilding = null;
     this._isInside = false;
+    /** True while a fade-in or fade-out transition is in progress. */
+    this._isTransitioning = false;
     /** Set by Game.js after portfolio.json is loaded. */
     this.portfolioData = {};
 
@@ -77,10 +79,13 @@ export class InteriorManager {
 
   /**
    * Fade to black → build room → fade in.
+   * No-ops if a transition is already in progress.
    * @param {import('./Building.js').Building} building
    * @param {() => void} [onEntered] — called once fully faded in
    */
   enter(building, onEntered) {
+    if (this._isTransitioning || this._isInside) return;
+    this._isTransitioning = true;
     this._isInside = true;
     this._fadeEl.style.opacity = '1';
     setTimeout(() => {
@@ -88,6 +93,7 @@ export class InteriorManager {
       this._buildRoom(building);
       this._fadeEl.style.opacity = '0';
       setTimeout(() => {
+        this._isTransitioning = false;
         this._exitEl.style.display = 'block';
         this._exitEl.style.opacity = '1';
         onEntered?.();
@@ -96,38 +102,55 @@ export class InteriorManager {
   }
 
   /**
-   * Fade to black → signal done → fade in (caller switches render target back).
+   * Fade to black → dispose scene → signal done → fade in.
+   * No-ops if a transition is already in progress.
    * @param {() => void} [onExited] — called once fully faded back in
    */
   exit(onExited) {
+    if (this._isTransitioning || !this._isInside) return;
+    this._isTransitioning = true;
     this._exitEl.style.display = 'none';
-    // Tear down any click handlers the interior registered before we clear the scene
+    // Tear down click handlers before the fade so they can't fire during the overlay
     this._currentBuilding?.disposeInterior?.();
     this._fadeEl.style.opacity = '1';
     setTimeout(() => {
+      // Screen is fully black — safe to release GPU resources and stop rendering interior
+      this._disposeSceneContent();
       this._isInside = false;
       this._currentBuilding = null;
       this._fadeEl.style.opacity = '0';
       setTimeout(() => {
+        this._isTransitioning = false;
         onExited?.();
       }, FADE_MS);
     }, FADE_MS);
   }
 
-  /** @param {import('./Building.js').Building} building */
-  _buildRoom(building) {
-    // Dispose previous geometry/materials before clearing
+  /**
+   * Traverse the interior scene, dispose all mesh geometry/materials/textures,
+   * then clear the scene. Safe to call on an already-empty scene.
+   */
+  _disposeSceneContent() {
     this._scene.traverse((obj) => {
-      if (obj.isMesh) {
-        obj.geometry.dispose();
-        if (Array.isArray(obj.material)) {
-          obj.material.forEach((m) => m.dispose());
-        } else {
-          obj.material.dispose();
+      if (!obj.isMesh) return;
+      obj.geometry?.dispose();
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const m of mats) {
+        if (!m) continue;
+        // Dispose any texture maps bound to this material
+        for (const slot of ['map', 'alphaMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'emissiveMap', 'aoMap']) {
+          m[slot]?.dispose();
         }
+        m.dispose();
       }
     });
     this._scene.clear();
+  }
+
+  /** @param {import('./Building.js').Building} building */
+  _buildRoom(building) {
+    // Dispose any leftover content from a previous session before rebuilding
+    this._disposeSceneContent();
 
     const w = building.width;
     const h = building.height;

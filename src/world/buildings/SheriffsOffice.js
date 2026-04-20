@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Building } from '../Building.js';
 import { show as showOverlay } from '../../ui/InteriorOverlay.js';
+import { escapeHtml } from '../../utils/math.js';
 
 // ── Canvas dimensions ────────────────────────────────────────────────────────
 const POSTER_W = 512;
@@ -12,7 +13,7 @@ const POSTER_WORLD_H = 2.0;
 const DESK_COLOR     = 0x5c3010;
 const CHAIR_COLOR    = 0x4a2808;
 
-/** @param {number} month — "2022-01" */
+/** @param {string} month — "YYYY-MM" (e.g. "2022-01") */
 function fmtDate(month) {
   if (!month) return '?';
   const [y, m] = month.split('-');
@@ -168,12 +169,12 @@ function posterOverlayHtml(entry) {
   }
   const start = fmtDate(entry.start);
   const end   = entry.end ? fmtDate(entry.end) : 'Present';
-  const bullets = (entry.bullets ?? []).map(b => `<li>${b}</li>`).join('');
+  const bullets = (entry.bullets ?? []).map(b => `<li>${escapeHtml(b)}</li>`).join('');
   return `
     <p class="io-wanted-banner">★ WANTED DEAD OR ALIVE ★</p>
-    <p class="io-wanted-company">${entry.company ?? ''}</p>
-    <p class="io-wanted-title">${entry.title ?? ''}</p>
-    <p class="io-wanted-meta">${start} – ${end}${entry.location ? ' · ' + entry.location : ''}</p>
+    <p class="io-wanted-company">${escapeHtml(entry.company ?? '')}</p>
+    <p class="io-wanted-title">${escapeHtml(entry.title ?? '')}</p>
+    <p class="io-wanted-meta">${start} – ${end}${entry.location ? ' · ' + escapeHtml(entry.location) : ''}</p>
     <p class="io-crimes-heading">Known Crimes Against Legacy Code</p>
     <ul class="io-crimes-list">${bullets}</ul>
   `;

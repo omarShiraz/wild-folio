@@ -230,7 +230,12 @@ function _mount() {
   }, true);
 }
 
-/** Show the overlay with arbitrary HTML content. */
+/**
+ * Show the parchment overlay with the provided HTML content.
+ * Mounts the overlay DOM on first call. Callers are responsible for escaping
+ * any user-controlled values before building the HTML string.
+ * @param {string} html — pre-built HTML to inject into the content area
+ */
 export function show(html) {
   _mount();
   _contentEl.innerHTML = html;
@@ -238,12 +243,17 @@ export function show(html) {
   _open = true;
 }
 
-/** Hide the overlay. */
+/**
+ * Hide the overlay. Safe to call when already hidden.
+ */
 export function hide() {
   if (!_el) return;
   _el.classList.remove('io-open');
   _open = false;
 }
 
-/** Returns true while the overlay is visible. */
+/**
+ * Returns true while the overlay is visible.
+ * @returns {boolean}
+ */
 export function isOpen() { return _open; }

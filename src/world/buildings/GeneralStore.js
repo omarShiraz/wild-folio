@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Building } from '../Building.js';
 import { show as showOverlay } from '../../ui/InteriorOverlay.js';
+import { escapeHtml, isSafeUrl } from '../../utils/math.js';
 
 const CRATE_COLORS = [0x8b4513, 0x6b3310, 0x9c6b30, 0x7a4e28, 0xa0522d, 0x704214];
 
@@ -72,17 +73,19 @@ function projectOverlayHtml(project) {
     return `<p class="io-proj-title">COMING SOON</p>
             <p class="io-proj-desc">Details arriving by Pony Express.</p>`;
   }
-  const thumb = project.thumbnail
-    ? `<img class="io-proj-thumb" src="${project.thumbnail}" alt="${project.name ?? ''}">`
+  const safeThumbnail = isSafeUrl(project.thumbnail) ? project.thumbnail : null;
+  const thumb = safeThumbnail
+    ? `<img class="io-proj-thumb" src="${safeThumbnail}" alt="${escapeHtml(project.name ?? '')}">`
     : `<div class="io-proj-thumb-placeholder">[ No Image Available ]</div>`;
-  const stack = (project.stack ?? []).map((s) => `<span class="io-stack-tag">${s}</span>`).join('');
-  const link = project.url
-    ? `<a class="io-visit-link" href="${project.url}" target="_blank" rel="noopener">VISIT →</a>`
+  const stack = (project.stack ?? []).map((s) => `<span class="io-stack-tag">${escapeHtml(s)}</span>`).join('');
+  const safeUrl = isSafeUrl(project.url) ? project.url : null;
+  const link = safeUrl
+    ? `<a class="io-visit-link" href="${safeUrl}" target="_blank" rel="noopener">VISIT →</a>`
     : '';
   return `
     ${thumb}
-    <p class="io-proj-title">${project.name ?? 'Unnamed'}</p>
-    <p class="io-proj-desc">${project.description ?? ''}</p>
+    <p class="io-proj-title">${escapeHtml(project.name ?? 'Unnamed')}</p>
+    <p class="io-proj-desc">${escapeHtml(project.description ?? '')}</p>
     <div class="io-stack-wrap">${stack}</div>
     ${link}
   `;

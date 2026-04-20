@@ -50,8 +50,14 @@ export class Game {
 
     // Load portfolio data once; buildings read from it when entered
     this.portfolioData = await fetch('/content/portfolio.json')
-      .then((r) => r.json())
-      .catch(() => ({}));
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+        return r.json();
+      })
+      .catch((err) => {
+        console.error('[Game] Failed to load portfolio.json:', err.message ?? err);
+        return {};
+      });
     this.interiorManager.portfolioData = this.portfolioData;
 
     this._initRenderer();
@@ -203,7 +209,7 @@ export class Game {
 
   /** @param {import('./world/Building.js').Building} building */
   _enterBuilding(building) {
-    document.getElementById('interaction-prompt').style.display = 'none';
+    this.hud.setInteractionPromptVisible(false);
     this.input.suppressPointerLock = true;
     this.hud.setInteriorMode(true);
     document.exitPointerLock();
@@ -214,7 +220,7 @@ export class Game {
     this.interiorManager.exit(() => {
       this.input.suppressPointerLock = false;
       this.hud.setInteriorMode(false);
-      document.getElementById('interaction-prompt').style.display = '';
+      this.hud.setInteractionPromptVisible(true);
       document.body.requestPointerLock();
     });
   }
