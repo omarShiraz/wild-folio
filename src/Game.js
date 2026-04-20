@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import {
   MAX_FRAME_DELTA, TONE_MAPPING_EXPOSURE, SKY_TURBIDITY, SKY_RAYLEIGH,
-  HORSE_MOUNT_RANGE,
+  HORSE_MOUNT_RANGE, DOOR_TRIGGER_RADIUS,
   STREET_WIDTH, BUILDING_CONFIGS,
 } from './utils/constants.js';
+import { bus } from './core/EventBus.js';
 import { Physics } from './core/Physics.js';
 import { Input } from './core/Input.js';
 import { Town } from './world/Town.js';
@@ -13,6 +14,7 @@ import { HUD } from './ui/HUD.js';
 import { MobileBlock } from './ui/MobileBlock.js';
 import { InteractionSystem } from './systems/InteractionSystem.js';
 import { WantedSystem } from './systems/WantedSystem.js';
+import { InteriorManager } from './world/InteriorManager.js';
 import { Debug } from './utils/debug.js';
 
 export class Game {
@@ -35,6 +37,8 @@ export class Game {
     this.interactions = null;
     /** @type {WantedSystem|null} */
     this.wantedSystem = null;
+    /** @type {InteriorManager} */
+    this.interiorManager = new InteriorManager();
     /** @type {Debug|null} */
     this.debug   = null;
   }
@@ -43,6 +47,12 @@ export class Game {
     // Bail out before touching WebGL if we're on a touch device
     const isMobile = await MobileBlock.mount();
     if (isMobile) return;
+
+    // Load portfolio data once; buildings read from it when entered
+    this.portfolioData = await fetch('/content/portfolio.json')
+      .then((r) => r.json())
+      .catch(() => ({}));
+    this.interiorManager.portfolioData = this.portfolioData;
 
     this._initRenderer();
     this._initCamera();
@@ -57,7 +67,10 @@ export class Game {
     this.interactions = new InteractionSystem(this.input);
     this.wantedSystem = new WantedSystem(this.hud);
     this._registerHorseInteractions();
+    this._registerBuildingInteractions();
     this._bindHorseKeys();
+
+    bus.on('building:enter', ({ building }) => this._enterBuilding(building));
 
     this.debug = new Debug();
     this._wireDebugGUI();
@@ -174,6 +187,38 @@ export class Game {
     this.player.mount(horse);
   }
 
+  _registerBuildingInteractions() {
+    for (const building of this.town.buildings) {
+      this.interactions.register({
+        position: building.doorPosition,
+        range: DOOR_TRIGGER_RADIUS,
+        prompt: `Press E to enter — ${building.name}`,
+        key: 'KeyE',
+        onInteract: () => bus.emit('building:enter', { building }),
+        // Cannot enter while mounted
+        enabled: () => !this.player.isMounted,
+      });
+    }
+  }
+
+  /** @param {import('./world/Building.js').Building} building */
+  _enterBuilding(building) {
+    document.getElementById('interaction-prompt').style.display = 'none';
+    this.input.suppressPointerLock = true;
+    this.hud.setInteriorMode(true);
+    document.exitPointerLock();
+    this.interiorManager.enter(building);
+  }
+
+  _exitBuilding() {
+    this.interiorManager.exit(() => {
+      this.input.suppressPointerLock = false;
+      this.hud.setInteriorMode(false);
+      document.getElementById('interaction-prompt').style.display = '';
+      document.body.requestPointerLock();
+    });
+  }
+
   _bindHorseKeys() {
     // F key for dismount (handled outside InteractionSystem since player is mounted)
     // H key for whistle
@@ -196,24 +241,29 @@ export class Game {
     const dt = Math.min((timestamp - this._lastTime) / 1000, MAX_FRAME_DELTA);
     this._lastTime = timestamp;
 
-    // Physics runs its own fixed-timestep accumulator inside update()
     this.physics.update(dt);
 
-    // Update horses
-    for (const horse of this.horses) horse.update(dt);
+    if (this.interiorManager.isInside) {
+      // Interior: check for exit key, skip all outdoor simulation
+      if (this.interiorManager.update(dt, this.input)) {
+        this._exitBuilding();
+      }
+    } else {
+      for (const horse of this.horses) horse.update(dt);
+      this.player?.update(dt);
+      this.interactions?.update(dt, this.player?.position ?? new THREE.Vector3());
+      this.wantedSystem?.update(dt);
+      this._horseKeyHandler?.();
+    }
 
-    this.player?.update(dt);
-    this.interactions?.update(dt, this.player?.position ?? new THREE.Vector3());
-    this.wantedSystem?.update(dt);
-
-    // Horse key bindings (dismount F, whistle H) — must run before flush
-    this._horseKeyHandler?.();
-
-    // Flush pressed-keys + mouse delta after all systems have consumed them
     this.input.flush();
 
     this.debug.begin();
-    this.renderer.render(this.scene, this.camera);
+    if (this.interiorManager.isInside) {
+      this.interiorManager.render(this.renderer);
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
     this.debug.end();
 
     requestAnimationFrame((t) => this._loop(t));

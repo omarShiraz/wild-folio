@@ -13,6 +13,8 @@ export class Input {
     this.mouseDX = 0;
     this.mouseDY = 0;
     this.isPointerLocked = false;
+    /** Set to true while inside a building interior to prevent click-to-lock. */
+    this.suppressPointerLock = false;
 
     this._bindEvents();
   }
@@ -38,9 +40,9 @@ export class Input {
       this.isPointerLocked = document.pointerLockElement === document.body;
     });
 
-    // Click canvas to request pointer lock (skip if clicking debug GUI)
+    // Click canvas to request pointer lock (skip debug GUI and interior mode)
     document.addEventListener('click', (e) => {
-      if (!this.isPointerLocked && !e.target.closest('.lil-gui')) {
+      if (!this.isPointerLocked && !this.suppressPointerLock && !e.target.closest('.lil-gui')) {
         document.body.requestPointerLock();
       }
     });
