@@ -2,7 +2,7 @@
   "name": "Your Name",
   "title": "Your Job Title",
   "bio": "A short bio about yourself — who you are, what you do, what you're looking for. Replace this with your real bio.",
-  "resume": null,
+  "resume": "/resume.pdf",
 
   "experience": [
     {

@@ -15,6 +15,8 @@ import { MobileBlock } from './ui/MobileBlock.js';
 import { InteractionSystem } from './systems/InteractionSystem.js';
 import { WantedSystem } from './systems/WantedSystem.js';
 import { InteriorManager } from './world/InteriorManager.js';
+import { PortfolioOverlay } from './ui/PortfolioOverlay.js';
+import { audioManager } from './core/AudioManager.js';
 import { Debug } from './utils/debug.js';
 
 export class Game {
@@ -39,6 +41,8 @@ export class Game {
     this.wantedSystem = null;
     /** @type {InteriorManager} */
     this.interiorManager = new InteriorManager();
+    /** @type {PortfolioOverlay} */
+    this.portfolioOverlay = new PortfolioOverlay();
     /** @type {Debug|null} */
     this.debug   = null;
   }
@@ -60,6 +64,19 @@ export class Game {
       });
     this.interiorManager.portfolioData = this.portfolioData;
 
+    this.portfolioOverlay.mount(this.portfolioData, {
+      onOpen: () => {
+        this.input.suppressInput = true;
+        document.exitPointerLock();
+      },
+      onClose: () => {
+        this.input.suppressInput = false;
+        if (!this.interiorManager.isInside) {
+          document.body.requestPointerLock();
+        }
+      },
+    });
+
     this._initRenderer();
     this._initCamera();
 
@@ -77,6 +94,15 @@ export class Game {
     this._bindHorseKeys();
 
     bus.on('building:enter', ({ building }) => this._enterBuilding(building));
+
+    // Start outdoor ambient on first pointer lock (guarantees a user gesture has fired)
+    const onFirstLock = () => {
+      if (document.pointerLockElement === document.body) {
+        audioManager.playOutdoorAmbient();
+        document.removeEventListener('pointerlockchange', onFirstLock);
+      }
+    };
+    document.addEventListener('pointerlockchange', onFirstLock);
 
     this.debug = new Debug();
     this._wireDebugGUI();
@@ -213,15 +239,18 @@ export class Game {
     this.input.suppressPointerLock = true;
     this.hud.setInteriorMode(true);
     document.exitPointerLock();
+    audioManager.playBuildingAmbient(building.name);
     this.interiorManager.enter(building);
   }
 
   _exitBuilding() {
+    audioManager.stopAmbient();
     this.interiorManager.exit(() => {
       this.input.suppressPointerLock = false;
       this.hud.setInteriorMode(false);
       this.hud.setInteractionPromptVisible(true);
       document.body.requestPointerLock();
+      audioManager.playOutdoorAmbient();
     });
   }
 

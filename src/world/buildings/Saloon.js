@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Building } from '../Building.js';
+import { audioManager } from '../../core/AudioManager.js';
 
 // ── Canvas dimensions ────────────────────────────────────────────────────────
 const BOARD_PX_W = 960;
@@ -127,11 +128,15 @@ function makeChalkboardTexture(data) {
 
 export class Saloon extends Building {
   buildInterior(scene, portfolioData, camera) {
+    this._clickables = [];
+    this._camera = camera;
     this._buildChalkboard(scene, portfolioData);
     this._buildBar(scene);
     this._buildStools(scene);
     this._buildPiano(scene);
+    this._buildBartender(scene);
     this._buildBarLanterns(scene);
+    this._attachClickHandler();
   }
 
   _buildChalkboard(scene, portfolioData) {
@@ -211,11 +216,18 @@ export class Saloon extends Building {
     body.position.set(-this.width / 2 + 0.9, 0.5, -3.5);
     scene.add(body);
 
-    // Keys strip on top
+    // Keys strip — clickable to play notes
     const keysMat = new THREE.MeshStandardMaterial({ color: COLOR_KEYS_W, roughness: 0.5 });
     const keyStrip = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.06, 0.25), keysMat);
     keyStrip.position.set(-this.width / 2 + 0.9, 1.03, -3.28);
     scene.add(keyStrip);
+
+    // Register the key strip as a clickable that plays a random note (no popup — keep it playable)
+    const NOTES = [220, 261.63, 293.66, 329.63, 392, 440, 523.25];
+    this._clickables.push({
+      mesh: keyStrip,
+      action: () => audioManager.playNote(NOTES[Math.floor(Math.random() * NOTES.length)]),
+    });
 
     // Black key dabs
     const blackMat = new THREE.MeshStandardMaterial({ color: COLOR_KEYS_B, roughness: 0.4 });
@@ -234,6 +246,94 @@ export class Saloon extends Building {
     const stoolLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.48, 8), stoolMat.clone());
     stoolLeg.position.set(-this.width / 2 + 0.9, 0.26, -2.85);
     scene.add(stoolLeg);
+  }
+
+  _buildBartender(scene) {
+    const skinMat   = new THREE.MeshStandardMaterial({ color: 0xc8a07a, roughness: 0.9 });
+    const shirtMat  = new THREE.MeshStandardMaterial({ color: 0xf5f0e0, roughness: 0.95 });
+    const vestMat   = new THREE.MeshStandardMaterial({ color: 0x3e1f0a, roughness: 0.9 });
+    const pantsMat  = new THREE.MeshStandardMaterial({ color: 0x2a1a08, roughness: 0.95 });
+    const hairMat   = new THREE.MeshStandardMaterial({ color: 0x1a0d04, roughness: 1.0 });
+
+    const bx = 0;
+    const bz = -3.9; // behind the bar
+
+    // Torso (shirt)
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.52, 0.26), shirtMat);
+    torso.position.set(bx, 1.12, bz);
+    scene.add(torso);
+
+    // Vest over shirt
+    const vest = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.54, 0.06), vestMat);
+    vest.position.set(bx, 1.12, bz + 0.11);
+    scene.add(vest);
+
+    // Head
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.3, 0.26), skinMat);
+    head.position.set(bx, 1.56, bz);
+    scene.add(head);
+
+    // Hair
+    const hair = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.28), hairMat);
+    hair.position.set(bx, 1.74, bz);
+    scene.add(hair);
+
+    // Moustache
+    const moustache = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.04), hairMat.clone());
+    moustache.position.set(bx, 1.46, bz + 0.13);
+    scene.add(moustache);
+
+    // Arms (slightly out to sides, leaning on bar)
+    const armGeo = new THREE.BoxGeometry(0.12, 0.12, 0.44);
+    const leftArm = new THREE.Mesh(armGeo, shirtMat.clone());
+    leftArm.rotation.x = -0.3;
+    leftArm.position.set(bx - 0.28, 0.94, bz + 0.12);
+    scene.add(leftArm);
+
+    const rightArm = new THREE.Mesh(armGeo, shirtMat.clone());
+    rightArm.rotation.x = -0.3;
+    rightArm.position.set(bx + 0.28, 0.94, bz + 0.12);
+    scene.add(rightArm);
+
+    // Hands
+    const handGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+    const lHand = new THREE.Mesh(handGeo, skinMat.clone());
+    lHand.position.set(bx - 0.28, 0.88, bz + 0.32);
+    scene.add(lHand);
+    const rHand = new THREE.Mesh(handGeo, skinMat.clone());
+    rHand.position.set(bx + 0.28, 0.88, bz + 0.32);
+    scene.add(rHand);
+
+    // Legs (lower half hidden behind bar body)
+    const legGeo = new THREE.BoxGeometry(0.18, 0.55, 0.22);
+    const lLeg = new THREE.Mesh(legGeo, pantsMat.clone());
+    lLeg.position.set(bx - 0.13, 0.56, bz);
+    scene.add(lLeg);
+    const rLeg = new THREE.Mesh(legGeo, pantsMat.clone());
+    rLeg.position.set(bx + 0.13, 0.56, bz);
+    scene.add(rLeg);
+  }
+
+  _attachClickHandler() {
+    const raycaster  = new THREE.Raycaster();
+    const ptr        = new THREE.Vector2();
+    const camera     = this._camera;
+    const clickables = this._clickables;
+
+    this._clickHandler = (e) => {
+      const canvas = e.currentTarget;
+      const rect   = canvas.getBoundingClientRect();
+      ptr.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+      ptr.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ptr, camera);
+      const hits = raycaster.intersectObjects(clickables.map((c) => c.mesh), false);
+      if (hits.length > 0) {
+        clickables.find((c) => c.mesh === hits[0].object)?.action();
+      }
+    };
+
+    this._canvas = document.querySelector('canvas');
+    this._canvas?.addEventListener('click', this._clickHandler);
   }
 
   _buildBarLanterns(scene) {
@@ -265,6 +365,10 @@ export class Saloon extends Building {
   }
 
   disposeInterior() {
-    // No click listeners in Saloon
+    if (this._clickHandler) {
+      this._canvas?.removeEventListener('click', this._clickHandler);
+      this._clickHandler = null;
+    }
+    this._clickables = [];
   }
 }

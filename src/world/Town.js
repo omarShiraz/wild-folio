@@ -16,6 +16,7 @@ import { SheriffsOffice } from './buildings/SheriffsOffice.js';
 import { Saloon } from './buildings/Saloon.js';
 import { GeneralStore } from './buildings/GeneralStore.js';
 import { PostOffice } from './buildings/PostOffice.js';
+import { Gunsmith } from './buildings/Gunsmith.js';
 import { Props } from './Props.js';
 
 const BUILDING_CLASS_MAP = {
@@ -23,6 +24,7 @@ const BUILDING_CLASS_MAP = {
   'Saloon':           Saloon,
   'General Store':    GeneralStore,
   'Post Office':      PostOffice,
+  'Gunsmith':         Gunsmith,
 };
 
 export class Town {

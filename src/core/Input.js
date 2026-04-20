@@ -15,6 +15,8 @@ export class Input {
     this.isPointerLocked = false;
     /** Set to true while inside a building interior to prevent click-to-lock. */
     this.suppressPointerLock = false;
+    /** Set to true to freeze all keyboard/mouse input (e.g. portfolio overlay open). */
+    this.suppressInput = false;
 
     this._bindEvents();
   }
@@ -49,10 +51,10 @@ export class Input {
   }
 
   /** @param {string} code — e.g. 'KeyW', 'ShiftLeft', 'Space' */
-  isDown(code) { return this._held.has(code); }
+  isDown(code) { return this.suppressInput ? false : this._held.has(code); }
 
   /** True only the first frame the key is held. */
-  isPressed(code) { return this._pressed.has(code); }
+  isPressed(code) { return this.suppressInput ? false : this._pressed.has(code); }
 
   /** Call once per frame after consuming input state. */
   flush() {
