@@ -183,7 +183,10 @@ function skillOverlayHtml(skill) {
 
 export class Gunsmith extends Building {
   buildInterior(scene, portfolioData, camera) {
+    this._scene = scene;
     this._clickables = [];
+    this._meshes = [];
+    this._lights = [];
     this._camera = camera;
 
     const skills = Array.isArray(portfolioData?.skills) ? portfolioData.skills : [];
@@ -211,22 +214,24 @@ export class Gunsmith extends Building {
       const plaque   = new THREE.Mesh(new THREE.BoxGeometry(PLAQUE_W + 0.1, PLAQUE_H + 0.12, 0.06), woodMat);
       plaque.position.set(plaqX, 2.5, bz);
       scene.add(plaque);
+      this._meshes.push(plaque);
 
       // Canvas art plane (sits in front of plaque)
       const mat  = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 });
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(PLAQUE_W, PLAQUE_H), mat);
       mesh.position.set(plaqX, 2.5, bz + 0.04);
       scene.add(mesh);
+      this._meshes.push(mesh);
 
       // Mounting screws — small brass dots
       const screwMat = new THREE.MeshStandardMaterial({ color: 0x8b6914, roughness: 0.4, metalness: 0.6 });
-      const screwGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.04, 6);
       const corners  = [[-0.42, 0.72], [0.42, 0.72], [-0.42, -0.72], [0.42, -0.72]];
       for (const [sx, sy] of corners) {
-        const screw = new THREE.Mesh(screwGeo, screwMat.clone());
+        const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.04, 6), screwMat.clone());
         screw.rotation.x = Math.PI / 2;
         screw.position.set(plaqX + sx, 2.5 + sy, bz + 0.065);
         scene.add(screw);
+        this._meshes.push(screw);
       }
 
       const captured = skill;
@@ -242,25 +247,30 @@ export class Gunsmith extends Building {
     const bench = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.07, this.depth - 1.0), wood);
     bench.position.set(this.width / 2 - 0.35, 0.9, 0);
     scene.add(bench);
+    this._meshes.push(bench);
 
     // Bench body
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.85, this.depth - 1.0), wood.clone());
     body.position.set(this.width / 2 - 0.34, 0.46, 0);
     scene.add(body);
+    this._meshes.push(body);
 
     // Vice on bench top
     const viceBody = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.28), metal);
     viceBody.position.set(this.width / 2 - 0.3, 1.07, 1.0);
     scene.add(viceBody);
+    this._meshes.push(viceBody);
 
     const viceJaw = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.06), metal.clone());
     viceJaw.position.set(this.width / 2 - 0.3, 1.07, 0.71);
     scene.add(viceJaw);
+    this._meshes.push(viceJaw);
 
     const viceHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4, 6), metal.clone());
     viceHandle.rotation.z = Math.PI / 2;
     viceHandle.position.set(this.width / 2 - 0.3, 1.16, 0.82);
     scene.add(viceHandle);
+    this._meshes.push(viceHandle);
   }
 
   _buildLamp(scene) {
@@ -271,31 +281,38 @@ export class Gunsmith extends Building {
     const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.55, 6), metal);
     chain.position.set(this.width / 2 - 0.35, this.height - 0.58, 1.0);
     scene.add(chain);
+    this._meshes.push(chain);
 
     const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.09, 8), metal.clone());
     cap.position.set(this.width / 2 - 0.35, this.height - 0.98, 1.0);
     scene.add(cap);
+    this._meshes.push(cap);
 
     const globe = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.06, 0.24, 8), glass);
     globe.position.set(this.width / 2 - 0.35, this.height - 1.2, 1.0);
     scene.add(globe);
+    this._meshes.push(globe);
 
     const light = new THREE.PointLight(0xffaa33, 10, 6);
     light.position.set(this.width / 2 - 0.35, this.height - 1.3, 1.0);
     scene.add(light);
+    this._lights.push(light);
 
     // Second lamp over weapon rack (centred)
     const chain2 = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.55, 6), metal.clone());
     chain2.position.set(0, this.height - 0.58, -this.depth / 2 + 1.5);
     scene.add(chain2);
+    this._meshes.push(chain2);
 
     const globe2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.06, 0.22, 8), glass.clone());
     globe2.position.set(0, this.height - 1.18, -this.depth / 2 + 1.5);
     scene.add(globe2);
+    this._meshes.push(globe2);
 
     const light2 = new THREE.PointLight(0xffaa33, 12, 7);
     light2.position.set(0, this.height - 1.3, -this.depth / 2 + 1.5);
     scene.add(light2);
+    this._lights.push(light2);
   }
 
   _attachClickHandler() {
@@ -325,6 +342,25 @@ export class Gunsmith extends Building {
       this._canvas?.removeEventListener('click', this._clickHandler);
       this._clickHandler = null;
     }
+
+    for (const mesh of this._meshes ?? []) {
+      this._scene?.remove(mesh);
+      mesh.geometry?.dispose();
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const m of mats) {
+        if (!m) continue;
+        m.map?.dispose();
+        m.dispose();
+      }
+    }
+
+    for (const light of this._lights ?? []) {
+      this._scene?.remove(light);
+    }
+
+    this._meshes = [];
+    this._lights = [];
     this._clickables = [];
+    this._scene = null;
   }
 }

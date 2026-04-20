@@ -185,7 +185,7 @@ export class PortfolioOverlay {
     // Corner button — always on top
     this._btn = document.createElement('button');
     this._btn.id = 'portfolio-skip-btn';
-    this._btn.textContent = '⦿ CV';
+    this._btn.textContent = 'Skip to Résumé';
     this._btn.addEventListener('click', () => this.show());
     document.body.appendChild(this._btn);
 

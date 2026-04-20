@@ -15,6 +15,8 @@ export class Input {
     this.isPointerLocked = false;
     /** Set to true while inside a building interior to prevent click-to-lock. */
     this.suppressPointerLock = false;
+    /** Set from Game.js after the renderer is created; only canvas clicks request pointer lock. */
+    this.canvas = null;
     /** Set to true to freeze all keyboard/mouse input (e.g. portfolio overlay open). */
     this.suppressInput = false;
 
@@ -42,9 +44,16 @@ export class Input {
       this.isPointerLocked = document.pointerLockElement === document.body;
     });
 
-    // Click canvas to request pointer lock (skip debug GUI and interior mode)
+    // Only request pointer lock when the renderer canvas itself is clicked.
+    // Keeps overlay buttons and lil-gui from accidentally locking the pointer.
     document.addEventListener('click', (e) => {
-      if (!this.isPointerLocked && !this.suppressPointerLock && !e.target.closest('.lil-gui')) {
+      if (
+        this.canvas &&
+        !this.isPointerLocked &&
+        !this.suppressPointerLock &&
+        !e.target.closest('.lil-gui') &&
+        e.composedPath().includes(this.canvas)
+      ) {
         document.body.requestPointerLock();
       }
     });

@@ -78,6 +78,7 @@ export class Game {
     });
 
     this._initRenderer();
+    this.input.canvas = this.renderer.domElement;
     this._initCamera();
 
     // Town must go first: ground physics body must exist before the player spawns
@@ -249,8 +250,9 @@ export class Game {
       this.input.suppressPointerLock = false;
       this.hud.setInteriorMode(false);
       this.hud.setInteractionPromptVisible(true);
-      document.body.requestPointerLock();
       audioManager.playOutdoorAmbient();
+      // Pointer lock is re-acquired on the next canvas click via Input's click handler,
+      // which runs with proper user activation (avoids the lost-activation issue in async callbacks).
     });
   }
 
