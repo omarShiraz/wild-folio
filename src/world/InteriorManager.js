@@ -235,6 +235,7 @@ export class InteriorManager {
   }
 
   dispose() {
+    this._disposeSceneContent();
     this._fadeEl?.remove();
     this._exitEl?.remove();
   }
