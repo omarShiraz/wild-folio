@@ -3,6 +3,7 @@ import {
   MAX_FRAME_DELTA, TONE_MAPPING_EXPOSURE, SKY_TURBIDITY, SKY_RAYLEIGH,
   HORSE_MOUNT_RANGE, DOOR_TRIGGER_RADIUS,
   STREET_WIDTH, BUILDING_CONFIGS,
+  NPC_CIVILIAN_SPAWNS,
 } from './utils/constants.js';
 import { bus } from './core/EventBus.js';
 import { Physics } from './core/Physics.js';
@@ -14,10 +15,13 @@ import { HUD } from './ui/HUD.js';
 import { MobileBlock } from './ui/MobileBlock.js';
 import { InteractionSystem } from './systems/InteractionSystem.js';
 import { WantedSystem } from './systems/WantedSystem.js';
+import { NPCManager } from './systems/NPCManager.js';
+import { CivilianNPC } from './entities/CivilianNPC.js';
 import { InteriorManager } from './world/InteriorManager.js';
 import { PortfolioOverlay } from './ui/PortfolioOverlay.js';
 import { audioManager } from './core/AudioManager.js';
 import { Debug } from './utils/debug.js';
+import { sounds } from './core/SoundSynth.js';
 
 export class Game {
   constructor() {
@@ -39,12 +43,21 @@ export class Game {
     this.interactions = null;
     /** @type {WantedSystem|null} */
     this.wantedSystem = null;
+    /** @type {NPCManager} */
+    this.npcManager = new NPCManager();
     /** @type {InteriorManager} */
     this.interiorManager = new InteriorManager();
     /** @type {PortfolioOverlay} */
     this.portfolioOverlay = new PortfolioOverlay();
     /** @type {Debug|null} */
     this.debug   = null;
+
+    // ── Shooting state ──
+    this._ammo        = 6;
+    this._reloading   = false;
+    this._reloadTimer = 0;
+    this._shootFwd    = new THREE.Vector3(); // reused to avoid per-shot alloc
+    this._shootRay    = new THREE.Raycaster();
   }
 
   async start() {
@@ -86,8 +99,11 @@ export class Game {
     this.player = new Player(this.scene, this.physics, this.camera, this.input);
 
     this._spawnHorses();
+    this._spawnCivilians();
 
     this.hud.mount();
+    this._ammo = 6;
+    this.hud.update({ health: 10, ammo: this._ammo, wantedLevel: 0 });
     this.interactions = new InteractionSystem(this.input);
     this.wantedSystem = new WantedSystem(this.hud);
     this._registerHorseInteractions();
@@ -171,6 +187,16 @@ export class Game {
   }
 
   // ─── Horses ─────────────────────────────────────────────────────────────
+
+  _spawnCivilians() {
+    for (const { x, z } of NPC_CIVILIAN_SPAWNS) {
+      const npc = new CivilianNPC(
+        { position: new THREE.Vector3(x, 0, z) },
+        this.scene,
+      );
+      this.npcManager.register(npc);
+    }
+  }
 
   _spawnHorses() {
     const hitchZ = STREET_WIDTH / 2 + 2;
@@ -271,6 +297,110 @@ export class Game {
     };
   }
 
+  // ─── Shooting ───────────────────────────────────────────────────────────
+
+  /** Tick the reload countdown; call once per outdoor frame. */
+  _tickReload(dt) {
+    if (!this._reloading) return;
+    this._reloadTimer -= dt;
+    if (this._reloadTimer <= 0) {
+      this._reloading = false;
+      this._ammo = 6;
+      this.hud.update({ ammo: this._ammo });
+      this.hud.setReloading(false);
+      sounds.reloadSnap();
+    }
+  }
+
+  _startReload() {
+    if (this._reloading) return;
+    this._reloading   = true;
+    this._reloadTimer = 2.0;
+    this.hud.setReloading(true);
+  }
+
+  _handleShooting() {
+    // Manual reload via R (only when not already reloading)
+    if (this.input.isPressed('KeyR') && !this.input.suppressInput && !this._reloading) {
+      this._startReload();
+      return;
+    }
+
+    if (!this.input.lmbPressed) return;
+    if (!this.input.isPointerLocked) return;
+    if (this.input.suppressInput) return;
+
+    // Can't fire while reloading
+    if (this._reloading) return;
+
+    // Empty cylinder click
+    if (this._ammo <= 0) {
+      sounds.emptyClick();
+      return;
+    }
+
+    // Fire
+    this._ammo--;
+    this.hud.update({ ammo: this._ammo });
+    sounds.gunshot();
+
+    this._shootRay.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+    const hitboxes = this.npcManager.getAlive().map((n) => n.hitbox);
+    const hits     = this._shootRay.intersectObjects(hitboxes, false);
+
+    let hitPoint = null;
+    if (hits.length > 0) {
+      hitPoint = hits[0].point;
+      const npc = this.npcManager.getByMesh(hits[0].object);
+      if (npc) {
+        const killed = npc.takeDamage(50);
+        if (killed) sounds.npcDeath();
+        else        sounds.npcHit();
+      }
+    }
+
+    this._spawnMuzzleFlash(hitPoint);
+
+    // Auto-reload on last round
+    if (this._ammo === 0) this._startReload();
+  }
+
+  /**
+   * Spawn a brief muzzle-flash point light + tracer line, then dispose.
+   * @param {THREE.Vector3|null} hitPoint — world-space impact, or null for a miss
+   */
+  _spawnMuzzleFlash(hitPoint) {
+    this.camera.getWorldDirection(this._shootFwd);
+
+    // Muzzle position: 1.2 m ahead of camera (roughly at gun barrel)
+    const muzzle = this.camera.position.clone()
+      .addScaledVector(this._shootFwd, 1.2);
+
+    // Brief warm flash light
+    const flash = new THREE.PointLight(0xffcc55, 10, 7);
+    flash.position.copy(muzzle);
+    this.scene.add(flash);
+
+    // Tracer from muzzle to impact (or 80 m miss distance)
+    const end = hitPoint
+      ? hitPoint.clone()
+      : muzzle.clone().addScaledVector(this._shootFwd, 80);
+
+    const geo = new THREE.BufferGeometry().setFromPoints([muzzle, end]);
+    const mat = new THREE.LineBasicMaterial({ color: 0xffee77, transparent: true, opacity: 0.65 });
+    const line = new THREE.Line(geo, mat);
+    this.scene.add(line);
+
+    // Clean up after 80 ms
+    setTimeout(() => {
+      this.scene.remove(flash);
+      flash.dispose();
+      this.scene.remove(line);
+      geo.dispose();
+      mat.dispose();
+    }, 80);
+  }
+
   // ─── Game loop ──────────────────────────────────────────────────────────
 
   /** @param {number} timestamp — ms from requestAnimationFrame */
@@ -281,13 +411,19 @@ export class Game {
     this.physics.update(dt);
 
     if (this.interiorManager.isInside) {
-      // Interior: check for exit key, skip all outdoor simulation
+      // Clear transient weapon state so crosshair and reload UI stay consistent
+      this.hud.setAiming(false);
+      this._tickReload(dt);
       if (this.interiorManager.update(dt, this.input)) {
         this._exitBuilding();
       }
     } else {
       for (const horse of this.horses) horse.update(dt);
       this.player?.update(dt);
+      this.hud.setAiming(this.player?.isAiming ?? false);
+      this._tickReload(dt);
+      this._handleShooting();
+      this.npcManager.update(dt);
       this.interactions?.update(dt, this.player?.position ?? new THREE.Vector3());
       this.wantedSystem?.update(dt);
       this._horseKeyHandler?.();
