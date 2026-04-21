@@ -264,7 +264,7 @@ export class Player {
   _updateMountedMovement(dt) {
     const input = this._input;
     const horse = this.mountedHorse;
-    const aiming = !input.suppressInput && input.rmb;
+    const aiming = this.isAiming;
 
     if (aiming) {
       // On the first frame of aim: align _yaw to horse facing so camera doesn't snap
@@ -308,7 +308,7 @@ export class Player {
 
   _updateMountedCamera() {
     const hp    = this.mountedHorse.body.position;
-    const aiming = !this._input.suppressInput && this._input.rmb;
+    const aiming = this.isAiming;
 
     if (aiming) {
       // Tight OTS: mouse still controls yaw/pitch but camera is much closer

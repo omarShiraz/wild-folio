@@ -411,7 +411,9 @@ export class Game {
     this.physics.update(dt);
 
     if (this.interiorManager.isInside) {
-      // Interior: check for exit key, skip all outdoor simulation
+      // Clear transient weapon state so crosshair and reload UI stay consistent
+      this.hud.setAiming(false);
+      this._tickReload(dt);
       if (this.interiorManager.update(dt, this.input)) {
         this._exitBuilding();
       }

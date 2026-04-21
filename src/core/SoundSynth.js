@@ -49,6 +49,7 @@ class SoundSynth {
     src.connect(flt);
     flt.connect(gn);
     gn.connect(ctx.destination);
+    src.onended = () => { src.disconnect(); flt.disconnect(); gn.disconnect(); };
     src.start(0);
   }
 
@@ -69,6 +70,7 @@ class SoundSynth {
     gn.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
     osc.connect(gn);
     gn.connect(ctx.destination);
+    osc.onended = () => { osc.disconnect(); gn.disconnect(); };
     osc.start();
     osc.stop(ctx.currentTime + duration);
   }
@@ -103,6 +105,7 @@ class SoundSynth {
     src.connect(comp);
     comp.connect(gn);
     gn.connect(ctx.destination);
+    src.onended = () => { src.disconnect(); comp.disconnect(); gn.disconnect(); };
     src.start(0);
   }
 
@@ -123,6 +126,7 @@ class SoundSynth {
       gn.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.06);
       osc.connect(gn);
       gn.connect(ctx.destination);
+      osc.onended = () => { osc.disconnect(); gn.disconnect(); };
       osc.start(ctx.currentTime + delay);
       osc.stop(ctx.currentTime + delay + 0.07);
     });

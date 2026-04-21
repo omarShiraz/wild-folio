@@ -86,6 +86,12 @@ export class CivilianNPC extends NPC {
     pos.x += this._fleeDir.x * step;
     pos.z += this._fleeDir.z * step;
     this.group.rotation.y = Math.atan2(this._fleeDir.x, this._fleeDir.z);
+
+    // Despawn once well outside the play area — prevents unbounded drift
+    if (Math.abs(pos.x) > NPC_WANDER_ZONE_HALF_X + 20 || Math.abs(pos.z) > NPC_WANDER_ZONE_HALF_Z + 20) {
+      this.state = 'dead';
+      this.dispose();
+    }
   }
 
   _stepTowardTarget(dt) {

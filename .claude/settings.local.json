@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npm install *)",
       "Bash(npm run *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout main)",
+      "Bash(git checkout feat/*)",
+      "Bash(git -C /home/omars/Projects/wild-folio log --oneline -10)"
     ]
   },
   "prefersReducedMotion": true

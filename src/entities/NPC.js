@@ -187,7 +187,10 @@ export class NPC {
       if (!obj.isMesh) return;
       obj.geometry.dispose();
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      for (const m of mats) m?.dispose();
+      for (const m of mats) {
+        if (m === _hitboxMat) continue; // module-scoped shared material — must not be disposed per-instance
+        m?.dispose();
+      }
     });
   }
 }

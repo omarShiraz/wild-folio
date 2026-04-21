@@ -56,8 +56,13 @@ export class Input {
       if (e.button === 2) this.rmb = false;
     });
 
-    // Suppress context menu so RMB aim works without a menu popping up
-    window.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Suppress context menu only when pointer-locked or the click is on the canvas,
+    // so overlays and lil-gui are unaffected.
+    window.addEventListener('contextmenu', (e) => {
+      if (document.pointerLockElement || (this.canvas && e.composedPath().includes(this.canvas))) {
+        e.preventDefault();
+      }
+    });
 
     document.addEventListener('pointerlockchange', () => {
       this.isPointerLocked = document.pointerLockElement === document.body;
