@@ -12,6 +12,10 @@ export class Input {
 
     this.mouseDX = 0;
     this.mouseDY = 0;
+    /** Right mouse button held (ADS / aim mode). */
+    this.rmb = false;
+    /** Left mouse button — true for one frame on click while pointer-locked. */
+    this.lmbPressed = false;
     this.isPointerLocked = false;
     /** Set to true while inside a building interior to prevent click-to-lock. */
     this.suppressPointerLock = false;
@@ -40,8 +44,24 @@ export class Input {
       }
     });
 
+    window.addEventListener('mousedown', (e) => {
+      // Guard is in _handleShooting (isPointerLocked check there); don't
+      // duplicate it here because pointerlockchange fires async so the flag
+      // can still be false at mousedown time even when the lock is live.
+      if (e.button === 0) this.lmbPressed = true;
+      if (e.button === 2) this.rmb = true;
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 2) this.rmb = false;
+    });
+
+    // Suppress context menu so RMB aim works without a menu popping up
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
+
     document.addEventListener('pointerlockchange', () => {
       this.isPointerLocked = document.pointerLockElement === document.body;
+      if (!this.isPointerLocked) this.rmb = false;
     });
 
     // Only request pointer lock when the renderer canvas itself is clicked.
@@ -68,6 +88,7 @@ export class Input {
   /** Call once per frame after consuming input state. */
   flush() {
     this._pressed.clear();
+    this.lmbPressed = false;
     this.mouseDX = 0;
     this.mouseDY = 0;
   }

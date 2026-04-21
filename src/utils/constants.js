@@ -113,6 +113,11 @@ export const HORSE_CAM_DISTANCE      = 10;
 export const HORSE_CAM_HEIGHT_OFFSET = 4.0;
 export const HORSE_CAM_LERP_FACTOR   = 0.85;
 
+// ─── Horse — camera (mounted aim / OTS) ─────────────────────────────────────
+export const HORSE_AIM_CAM_DISTANCE  = 3.5;  // tight OTS distance when RMB held
+export const HORSE_AIM_CAM_HEIGHT    = 2.8;  // pivot height above horse body center
+export const HORSE_AIM_STEER_SCALE   = 0.35; // fraction of normal turn speed when aiming
+
 // ─── Interaction ────────────────────────────────────────────────────────────
 export const INTERACTION_POLL_RATE  = 0.1; // seconds between proximity checks
 export const DOOR_TRIGGER_RADIUS    = 3.0; // tight sphere around door centre
@@ -127,3 +132,28 @@ export const BUILDING_ROUGHNESS  = 0.9;
 export const SIGN_HEIGHT_FRAC    = 0.82; // sign placed at this fraction of building height
 export const SIGN_WIDTH_FRAC     = 0.75; // sign width relative to building width (capped)
 export const SIGN_MAX_WIDTH      = 3.5;
+
+// ─── NPC ─────────────────────────────────────────────────────────────────────
+export const NPC_HEALTH_CIVILIAN = 100;
+export const NPC_HEALTH_LAWMAN   = 150;
+export const NPC_HITBOX_W        = 0.50;  // metres — raycast collision box width
+export const NPC_HITBOX_H        = 1.80;  // metres — full figure height
+export const NPC_HITBOX_D        = 0.50;  // metres — raycast collision box depth
+
+// ─── NPC wander AI ───────────────────────────────────────────────────────────
+export const NPC_FLEE_SPEED         = 5.0;  // m/s — panic run after being shot
+export const NPC_WANDER_SPEED       = 1.8;  // m/s
+export const NPC_WANDER_RADIUS      = 7.0;  // m — max step distance from current position
+export const NPC_WANDER_PAUSE_MIN   = 2.0;  // s — min idle time between moves
+export const NPC_WANDER_PAUSE_MAX   = 5.0;  // s — max idle time between moves
+export const NPC_WANDER_ARRIVE_DIST = 0.5;  // m — close enough to count as arrived
+export const NPC_WANDER_ZONE_HALF_X = 30;   // ±X hard boundary for wander targets
+export const NPC_WANDER_ZONE_HALF_Z = 10;   // ±Z hard boundary (building faces are at ±12)
+
+// ─── NPC civilian spawn positions (exterior, ground level) ───────────────────
+export const NPC_CIVILIAN_SPAWNS = [
+  { x: -21, z:  -8 },  // near Saloon        (north boardwalk)
+  { x:   2, z:   8 },  // near General Store (south boardwalk)
+  { x:  19, z:  -8 },  // near Post Office   (north boardwalk)
+  { x:  14, z:   8 },  // near Gunsmith      (south boardwalk)
+];

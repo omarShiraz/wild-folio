@@ -9,6 +9,8 @@ import {
   MOUSE_SENSITIVITY,
   COLOR_PLAYER_BODY, COLOR_PLAYER_HAT,
   HORSE_CAM_DISTANCE, HORSE_CAM_HEIGHT_OFFSET, HORSE_CAM_LERP_FACTOR,
+  HORSE_AIM_CAM_DISTANCE, HORSE_AIM_CAM_HEIGHT, HORSE_AIM_STEER_SCALE,
+  HORSE_TURN_SPEED,
   HORSE_BODY_H, HORSE_LEG_H,
   HORSE_WHISTLE_RANGE,
 } from '../utils/constants.js';
@@ -36,16 +38,18 @@ export class Player {
     /** @type {import('./Horse.js').Horse|null} horse assigned to this player */
     this.ownedHorse = null;
     this._mountCooldown = 0; // seconds — prevents mount+dismount on same frame
+    this._wasAiming = false; // detects RMB press edge to snap _yaw to horse facing
 
     // Reusable objects — allocated once to avoid GC pressure in the loop
-    this._yAxis    = new THREE.Vector3(0, 1, 0);
-    this._forward  = new THREE.Vector3();
-    this._right    = new THREE.Vector3();
-    this._moveDir  = new THREE.Vector3();
-    this._pivot    = new THREE.Vector3();
-    this._camEuler = new THREE.Euler(0, 0, 0, 'YXZ');
-    this._camOffset= new THREE.Vector3();
-    this._camTarget= new THREE.Vector3();
+    this._yAxis      = new THREE.Vector3(0, 1, 0);
+    this._forward    = new THREE.Vector3();
+    this._right      = new THREE.Vector3();
+    this._moveDir    = new THREE.Vector3();
+    this._pivot      = new THREE.Vector3();
+    this._camEuler   = new THREE.Euler(0, 0, 0, 'YXZ');
+    this._camOffset  = new THREE.Vector3();
+    this._camTarget  = new THREE.Vector3();
+    this._aimLookAt  = new THREE.Vector3(); // far target used when aiming
     this._cannonFrom = new CANNON.Vec3();
     this._cannonTo   = new CANNON.Vec3();
     this._rayResult  = new CANNON.RaycastResult();
@@ -209,7 +213,15 @@ export class Player {
     const final = this._clipCamera(this._pivot, this._camTarget);
 
     this._camera.position.lerp(final, CAM_LERP_FACTOR);
-    this._camera.lookAt(this._pivot);
+
+    if (this.isAiming) {
+      // Look 50 m ahead in the aim direction so the crosshair points past the
+      // player at enemies, not into the player's own back.
+      this._setAimLookAt(this._pivot);
+      this._camera.lookAt(this._aimLookAt);
+    } else {
+      this._camera.lookAt(this._pivot);
+    }
   }
 
   /**
@@ -252,20 +264,36 @@ export class Player {
   _updateMountedMovement(dt) {
     const input = this._input;
     const horse = this.mountedHorse;
+    const aiming = !input.suppressInput && input.rmb;
 
-    let throttle = 0;
-    if (input.isDown('KeyW')) throttle = 1;
-    else if (input.isDown('KeyS')) throttle = -1;
+    if (aiming) {
+      // On the first frame of aim: align _yaw to horse facing so camera doesn't snap
+      if (!this._wasAiming) this._yaw = horse.yaw;
 
-    let steer = 0;
-    if (input.isDown('KeyA')) steer = -1;
-    else if (input.isDown('KeyD')) steer = 1;
+      // A/D apply reduced yaw directly to the horse; no throttle change needed
+      const steer = (input.isDown('KeyD') ? 1 : 0) - (input.isDown('KeyA') ? 1 : 0);
+      if (steer !== 0) horse.yaw -= steer * HORSE_TURN_SPEED * HORSE_AIM_STEER_SCALE * dt;
 
-    const spaceHeld = input.isDown('Space');
-    const spaceTapped = input.isPressed('Space');
+      // Maintain current speed in horse's facing direction without W input
+      horse.body.velocity.x = -Math.sin(horse.yaw) * horse.speed;
+      horse.body.velocity.z = -Math.cos(horse.yaw) * horse.speed;
+    } else {
+      let throttle = 0;
+      if (input.isDown('KeyW')) throttle = 1;
+      else if (input.isDown('KeyS')) throttle = -1;
 
-    // Horse steers toward camera yaw; camera moves freely via mouse
-    horse.applyRiderInput(dt, throttle, this._yaw, spaceHeld, spaceTapped, steer);
+      let steer = 0;
+      if (input.isDown('KeyA')) steer = -1;
+      else if (input.isDown('KeyD')) steer = 1;
+
+      const spaceHeld  = input.isDown('Space');
+      const spaceTapped = input.isPressed('Space');
+
+      // Horse steers toward camera yaw; camera moves freely via mouse
+      horse.applyRiderInput(dt, throttle, this._yaw, spaceHeld, spaceTapped, steer);
+    }
+
+    this._wasAiming = aiming;
   }
 
   _syncMeshMounted() {
@@ -279,18 +307,50 @@ export class Player {
   }
 
   _updateMountedCamera() {
-    const hp = this.mountedHorse.body.position;
-    this._pivot.set(hp.x, hp.y + HORSE_CAM_HEIGHT_OFFSET, hp.z);
+    const hp    = this.mountedHorse.body.position;
+    const aiming = !this._input.suppressInput && this._input.rmb;
 
-    // Camera orbits freely with mouse yaw/pitch (not locked to horse facing)
-    this._camEuler.set(this._pitch, this._yaw, 0);
-    this._camOffset.set(0, 0, HORSE_CAM_DISTANCE).applyEuler(this._camEuler);
-    this._camTarget.addVectors(this._pivot, this._camOffset);
+    if (aiming) {
+      // Tight OTS: mouse still controls yaw/pitch but camera is much closer
+      this._pivot.set(hp.x, hp.y + HORSE_AIM_CAM_HEIGHT, hp.z);
+      this._camEuler.set(this._pitch, this._yaw, 0);
+      this._camOffset.set(0, 0, HORSE_AIM_CAM_DISTANCE).applyEuler(this._camEuler);
+      this._camTarget.addVectors(this._pivot, this._camOffset);
 
-    const final = this._clipCamera(this._pivot, this._camTarget, HORSE_CAM_DISTANCE);
+      const final = this._clipCamera(this._pivot, this._camTarget, HORSE_AIM_CAM_DISTANCE);
+      this._camera.position.lerp(final, HORSE_CAM_LERP_FACTOR);
+      this._setAimLookAt(this._pivot);
+      this._camera.lookAt(this._aimLookAt);
+    } else {
+      // Free orbit: camera follows mouse yaw/pitch (not locked to horse facing)
+      this._pivot.set(hp.x, hp.y + HORSE_CAM_HEIGHT_OFFSET, hp.z);
+      this._camEuler.set(this._pitch, this._yaw, 0);
+      this._camOffset.set(0, 0, HORSE_CAM_DISTANCE).applyEuler(this._camEuler);
+      this._camTarget.addVectors(this._pivot, this._camOffset);
 
-    this._camera.position.lerp(final, HORSE_CAM_LERP_FACTOR);
-    this._camera.lookAt(this._pivot);
+      const final = this._clipCamera(this._pivot, this._camTarget, HORSE_CAM_DISTANCE);
+      this._camera.position.lerp(final, HORSE_CAM_LERP_FACTOR);
+      this._camera.lookAt(this._pivot);
+    }
+  }
+
+  /**
+   * Populate _aimLookAt with a point 50 m ahead of `origin` in the current
+   * yaw+pitch direction. Used so camera.lookAt points forward, not at the player.
+   * @param {THREE.Vector3} origin
+   */
+  _setAimLookAt(origin) {
+    const cy = Math.cos(this._pitch);
+    this._aimLookAt.set(
+      origin.x - Math.sin(this._yaw) * cy * 50,
+      origin.y + Math.sin(this._pitch)      * 50,
+      origin.z - Math.cos(this._yaw) * cy * 50,
+    );
+  }
+
+  /** True while holding RMB and pointer-locked — works on foot and mounted. */
+  get isAiming() {
+    return this._input.isPointerLocked && this._input.rmb && !this._input.suppressInput;
   }
 
   // ─── Mount / Dismount ─────────────────────────────────────────────────────

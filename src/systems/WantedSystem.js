@@ -22,9 +22,7 @@ export class WantedSystem {
 
   _bindEvents() {
     bus.on('crime:horse_stolen', () => this._raise(1));
-    // Future crime events hook in here:
-    // bus.on('crime:npc_hit', () => this._raise(1));
-    // bus.on('crime:lawman_hit', () => this._raise(2));
+    bus.on('crime:witnessed',    () => this._raise(1));
   }
 
   /**

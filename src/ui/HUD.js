@@ -90,6 +90,37 @@ const CSS = `
 
   .chamber.empty { color: #2a1a0a; }
 
+  /* ── Reload indicator (bottom-right, above ammo) ── */
+  #hud-reload {
+    position: absolute;
+    bottom: 90px;
+    right: 24px;
+    color: #d4a96a;
+    font-family: Georgia, serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    display: none;
+    pointer-events: none;
+  }
+  #hud-reload.visible { display: block; }
+
+  /* ── ADS crosshair (mounted aim) ── */
+  #hud-crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(212, 169, 106, 0.85);
+    box-shadow: 0 0 4px rgba(212, 169, 106, 0.5);
+    display: none;
+    pointer-events: none;
+  }
+  #hud-crosshair.visible { display: block; }
+
   /* ── pointer-lock prompt (centred) ── */
   #hud-prompt {
     position: absolute;
@@ -171,6 +202,19 @@ export class HUD {
    * Used by Game when entering/exiting a building so the DOM is not touched directly.
    * @param {boolean} visible
    */
+  /**
+   * Show or hide the mounted ADS crosshair.
+   * @param {boolean} aiming
+   */
+  setAiming(aiming) {
+    this._el?.querySelector('#hud-crosshair')?.classList.toggle('visible', aiming);
+  }
+
+  /** @param {boolean} reloading */
+  setReloading(reloading) {
+    this._el?.querySelector('#hud-reload')?.classList.toggle('visible', reloading);
+  }
+
   setInteractionPromptVisible(visible) {
     const el = document.getElementById('interaction-prompt');
     if (el) el.style.display = visible ? '' : 'none';
@@ -236,6 +280,9 @@ export class HUD {
         <span class="hud-label">Revolver</span>
         <div class="hud-chambers">${chambers}</div>
       </div>
+
+      <div id="hud-crosshair"></div>
+      <div id="hud-reload">Reloading…</div>
 
       <div id="hud-prompt">
         <div class="hud-prompt-box">
